@@ -1,9 +1,14 @@
 
 [TODO]
-  - Consider using Mo for all OOP.
   - Convert internal representation of http request and response to PSGI.
 
 [CHANGELOG]
+
+2011-12-11    1.069
+  - Fixed META.yml to show the correct github url.
+
+2011-12-10    1.068
+  - ASP4 is now hosted on github. https://github.com/jdrago999/ASP4
 
 2011-12-01    1.067
   - ASP4::GlobalASA is completely deprecated.

@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               ASP4
-version:            1.067
+version:            1.069
 abstract:           Fast, Simple, Scalable Web Development
 author:
     - John Drago <jdrago_999@yahoo.com>
@@ -29,6 +29,8 @@ no_index:
         - t
         - inc
 generated_by:       Hand
+resources:
+  repository: git://github.com/jdrago999/ASP4.git
 meta-spec:
     url:      http://module-build.sourceforge.net/META-spec-v1.4.html
     version:  1.4

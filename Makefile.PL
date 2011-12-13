@@ -35,6 +35,9 @@ install_script 'sbin/asp4';
 install_script 'sbin/asp4-prep';
 install_script 'sbin/asp4-deploy';
 install_script 'sbin/asphelper';
+resources(
+  'repository'  => 'https://github.com/jdrago999/ASP4'
+);
 
 tests_recursive();
 WriteAll();
