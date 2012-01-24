@@ -4,6 +4,26 @@
 
 [CHANGELOG]
 
+2012-01-23    1.073
+  - Added $Request->Header($name)
+    (Somehow we've gotten along all this time without it.)
+
+2012-01-23    1.072
+  - More tweaks on ASP4::SessionStateManager's default internal behavior
+    has resulted in some more-than-modest performance gains.
+  - Disabling session-state can result in 630 requests/second on a simple 
+    master/child "content" page, and 475 requests/second on a page that
+    includes reading data from a database (using Class::DBI::Lite of course).
+    * Results from `ab` on a Dell E6510 (quad-dual-core-i7, 8GB RAM, Ubuntu 10.10)
+
+2012-01-22    1.071
+  - ASP4::HTTPContext now triggers the SessionStateManager's save() method
+    when the context is DESTROY'd.
+
+2012-01-22    1.070
+  - No longer check session's last-mod when deciding whether or not to save 
+    session state at the end of a request.
+
 2011-12-11    1.069
   - Fixed META.yml to show the correct github url.
 

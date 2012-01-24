@@ -50,31 +50,14 @@ sub setup_request
   $s->{response}  ||= ASP4::Response->new();
   $s->{server}    ||= ASP4::Server->new();
   
-  my $do_session_onstart;
   if( $s->do_disable_session_state )
   {
     $s->{session} ||= ASP4::SessionStateManager::NonPersisted->new( $s->r );
   }
   else
   {
-    $s->{session}   ||= $s->config->data_connections->session->manager->new( $s->r );
-    $do_session_onstart++;
+    $s->{session} ||= $s->config->data_connections->session->manager->new( $s->r );
   }# end if()
-  
-# XXX: GlobalASA is removed in v1.063
-#  $s->{global_asa} = $s->resolve_global_asa_class( );
-#  {
-#    no warnings 'uninitialized';
-#    $s->{global_asa}->init_asp_objects( $s );
-#    if( $do_session_onstart )
-#    {
-#      unless( $s->session->{__started} )
-#      {
-#        $s->handle_phase( $s->global_asa->can('Session_OnStart') );
-#        $s->session->{__started} = 1;
-#      }# end unless()
-#    }# end if()
-#  }
   
   return $_instance;
 }# end setup_request()
@@ -92,8 +75,6 @@ sub stash     { shift->{stash} }
 # More advanced:
 sub cgi         { shift->{cgi} }
 sub r           { shift->{r} }
-# XXX: GlobalASA is removed in v1.063
-#sub global_asa  { return; shift->{global_asa} }
 sub handler     { shift->{handler} }
 sub headers_out { shift->{headers_out} }
 sub content_type  { my $s = shift; $s->r->content_type( @_ ) }
@@ -166,10 +147,6 @@ sub execute
         return $res;
       }# end if()
     }# end foreach()
-    
-# XXX: GlobalASA is removed in v1.063
-#    my $start_res = $s->handle_phase( $s->global_asa->can('Script_OnStart') );
-#    return $start_res if $s->did_end || defined( $start_res );
   }# end unless()
   
   eval {
@@ -251,50 +228,23 @@ sub end_request
 {
   my $s = shift;
   
-# XXX: GlobalASA is removed in v1.063
-#  $s->handle_phase( $s->global_asa->can('Script_OnEnd') )
-#    unless $s->{did_end};
-  
   $s->response->End;
-  $s->session->save unless $s->session->is_read_only;
   my $res = $s->response->Status =~ m/^200/ ? 0 : $s->response->Status;
   
   return $res;
 }# end end_request()
 
 
-# XXX: GlobalASA is removed in v1.063
-#sub resolve_global_asa_class
-#{
-#  my $s = shift;
-#  
-#  my $file = $s->config->web->www_root . '/GlobalASA.pm';
-#  my $class;
-#  if( -f $file )
-#  {
-#    $class = $s->config->web->application_name . '::GlobalASA';
-#    eval { require $file };
-#    confess $@ if $@;
-#  }
-#  else
-#  {
-#    $class = 'ASP4::GlobalASA';
-#    $s->config->load_class( $class );
-#  }# end if()
-#  
-#  return $class;
-#}# end resolve_global_asa_class()
-
-
 sub do_disable_session_state
 {
   my ($s) = @_;
   
-  my ($uri) = split /\?/, $s->r->uri;
+#  my ($uri) = split /\?/, $s->r->uri;
+  my ($uri) = split /\?/, $ENV{REQUEST_URI} || $s->r->uri;
   my ($yes) = grep { $_->disable_session } grep {
     if( my $pattern = $_->uri_match )
     {
-      $uri =~ m/$pattern/
+      $uri =~ m/^$pattern$/
     }
     else
     {
@@ -309,6 +259,7 @@ sub do_disable_session_state
 sub DESTROY
 {
   my $s = shift;
+  $s->session->save if $s->session && ! $s->session->is_read_only;
   undef(%$s);
 }# end DESTROY()
 

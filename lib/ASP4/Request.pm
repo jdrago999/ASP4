@@ -113,6 +113,14 @@ sub Reroute
 }# end Reroute()
 
 
+sub Header
+{
+  my ($s, $name) = @_;
+  
+  $s->context->r->headers_in->{$name};
+}# end Header()
+
+
 sub DESTROY
 {
   my $s = shift;
@@ -176,6 +184,10 @@ So...if your form has this:
 Then you would get to it like this:
 
   my $upload = $Request->FileUpload('my_uploaded-file');
+
+=head2 Header( $name )
+
+Returns the value of an incoming http request header by the given name.
 
 =head1 BUGS
 

@@ -23,6 +23,7 @@ requires    'DBI'                     => 0;       # Session state.
 requires    'Ima::DBI::Contextual'    => 0;       # Session state.
 requires    'Storable'                => 0;       # Session state.
 requires    'HTTP::Date'              => 0;       # For Session timeouts.
+requires    'Time::HiRes'             => 0;       # For Session ids.
 requires    'Mail::Sendmail'          => 0;       # For sending email.
 requires    'CGI'                     => 3.43;    # For...cgi stuff...
 requires    'HTTP::Body'              => 0;

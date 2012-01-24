@@ -21,7 +21,9 @@ sub handler : method
   $ENV{DOCUMENT_ROOT}   = $r->document_root;
   $ENV{REMOTE_ADDR}     = $r->connection->get_remote_host();
   $ENV{HTTP_HOST}       = $r->hostname;
+  
   my $context = ASP4::HTTPContext->new();
+  $r->pool->cleanup_register(sub { undef($context) });
   
   if( uc($r->method) eq 'POST' && $r->headers_in->{'content-type'} =~ m/multipart\/form\-data/ )
   {

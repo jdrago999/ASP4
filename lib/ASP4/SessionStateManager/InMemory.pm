@@ -26,6 +26,9 @@ sub new
 }# end new()
 
 
+sub now { time() }
+
+
 sub verify_session_id
 {
   my ($s, $id, $ttl) = @_;

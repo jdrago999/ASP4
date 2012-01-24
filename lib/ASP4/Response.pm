@@ -211,6 +211,8 @@ sub Redirect
   
   $s->Clear;
   $s->Status( 301 );
+  $s->Expires( "-24H" )
+    unless $s->Expires;
   $s->SetHeader( Location => $url );
   $s->End;
   return $s->Status;
