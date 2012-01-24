@@ -24,7 +24,6 @@ lib/ASP4/ErrorHandler/Remote.pm
 lib/ASP4/FileUpload.pm
 lib/ASP4/FilterResolver.pm
 lib/ASP4/FormHandler.pm
-lib/ASP4/GlobalASA.pm.deprecated
 lib/ASP4/HandlerResolver.pm
 lib/ASP4/HandlerRunner.pm
 lib/ASP4/HTTPContext.pm
