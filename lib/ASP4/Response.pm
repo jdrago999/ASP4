@@ -35,6 +35,7 @@ sub ContentType
     my $type = shift;
     $s->{_content_type} = $type;
     $s->context->r->content_type( $type );
+    $s->SetHeader( 'content-type' => $type );
   }
   else
   {

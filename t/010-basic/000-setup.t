@@ -7,7 +7,13 @@ use Test::More 'no_plan';
 use DBI;
 use Digest::MD5 'md5_hex';
 
-my $dbfile = '/tmp/db_asp4';
+my $temp_root = '/tmp';
+if( $^O =~ m{win32}i )
+{
+  $temp_root = $ENV{TEMP} || $ENV{TMP};
+}# end if()
+
+my $dbfile = "$temp_root/db_asp4";
 open my $ofh, '>', $dbfile
   or die "Cannot open '$dbfile' for writing: $!";
 binmode($ofh);
@@ -47,4 +53,5 @@ ok( my $rec = $sth->fetchrow_hashref, "fetched record" );
 $sth->finish();
 
 $dbh->disconnect();
+
 

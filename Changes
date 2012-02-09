@@ -4,6 +4,30 @@
 
 [CHANGELOG]
 
+2012-02-07    1.079
+  - Errors output to the stderr are now derived directly from $@ not from any
+    parsed version of it.
+
+2012-02-02    1.078
+  - Fixed installation problem that came up in v1.075 
+    (compilation root was missing leading forward slash on non-windows systems).
+
+2012-02-01    1.077
+  - Loath to add a mime-types-all-knowing dependency, we have a small list of
+    common mime-types (html, css, js, etc).
+  - Added mime for html and svg.
+
+2012-02-01    1.076
+  - Now, the 'content-type' header is set correctly for ASP4::UserAgent responses.
+  - Works correctly under ASP4::PSGI (images, css, javascript all show up).
+
+2012-02-01    1.075
+  - Now, works on Windows!
+  - eric.hayes++
+
+2012-01-30    1.074
+  - Explicit calls to $Session->save() are no longer necessary.
+
 2012-01-23    1.073
   - Added $Request->Header($name)
     (Somehow we've gotten along all this time without it.)

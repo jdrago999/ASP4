@@ -40,7 +40,7 @@ sub new
   {
     my ($main, $message, $file, $line) = $err_str =~ m/^((.*?)\s(?:at|in)\s(.*?)\sline\s(\d+))/;
     $error = {
-      message     => $message,
+      message     => $message || $err_str,
       file        => $file,
       line        => $line,
       stacktrace  => $err_str,

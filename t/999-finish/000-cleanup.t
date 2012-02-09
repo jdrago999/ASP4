@@ -4,11 +4,14 @@ use strict;
 use warnings 'all';
 use Test::More 'no_plan';
 
-ok( unlink('/tmp/db_asp4'), "unlink('/tmp/db_asp4')" );
+my $temp_root = $ENV{TEMP} || $ENV{TMP} || '/tmp';
+my $filename = "$temp_root/db_asp4";
+ok( unlink($filename), "unlink('$filename')" );
 map {
   ok(
     unlink($_),
     "unlink('$_')"
   );
-} </tmp/PAGE_CACHE/DefaultApp/*.pm>;
+} <$temp_root/PAGE_CACHE/DefaultApp/*.pm>;
+
 

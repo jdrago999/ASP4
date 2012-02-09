@@ -30,6 +30,17 @@ sub run
   my %types = (
     swf   => 'application/x-shockwave-flash',
     xml   => 'text/xml',
+    jpg   => 'image/jpeg',
+    jpeg  => 'image/jpeg',
+    png   => 'image/png',
+    bmp   => 'image/bmp',
+    gif   => 'image/gif',
+    json  => 'application/x-json',
+    css   => 'text/css',
+    pdf   => 'application/x-pdf',
+    js    => 'text/javascript',
+    svg   => 'image/svg+xml',
+    html  => 'text/html',
   );
   my $type = $types{lc($ext)} || 'application/octet-stream';
   $Response->ContentType( $type );

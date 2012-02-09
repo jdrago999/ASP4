@@ -206,6 +206,8 @@ sub _setup_response
   
   $s->context->r->pool->call_cleanup_handlers();
   
+  context->DESTROY;
+  
   return $response;
 }# end _setup_response()
 

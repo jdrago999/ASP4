@@ -23,7 +23,7 @@ sub handler : method
   $ENV{HTTP_HOST}       = $r->hostname;
   
   my $context = ASP4::HTTPContext->new();
-  $r->pool->cleanup_register(sub { undef($context) });
+  $r->pool->cleanup_register(sub { $context->DESTROY });
   
   if( uc($r->method) eq 'POST' && $r->headers_in->{'content-type'} =~ m/multipart\/form\-data/ )
   {

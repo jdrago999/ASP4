@@ -60,7 +60,7 @@ TEST7: {
   my ($form) = HTML::Form->parse( $res->content, '/' );
   ok( $form, 'found form' );
   
-  my $filename = '/tmp/' . rand() . '.txt';
+  my $filename = ( $ENV{TEMP} || $ENV{TMP} || '/tmp' ) . '/' . rand() . '.txt';
   open my $ofh, '>', $filename
     or die "Cannot open '$filename' for writing: $!";
   my $data = join "\n", map {
@@ -82,7 +82,7 @@ TEST7: {
 };
 
 TEST8: {
-  my $filename = '/tmp/' . rand() . '.txt';
+  my $filename = ( $ENV{TEMP} || $ENV{TMP} || '/tmp' ) . '/' . rand() . '.txt';
   open my $ofh, '>', $filename
     or die "Cannot open '$filename' for writing: $!";
   my $data = join "\n", map {
@@ -134,4 +134,5 @@ TEST9: {
     $res->content, $expected, "/masters/deep.asp is correct"
   );
 };
+
 

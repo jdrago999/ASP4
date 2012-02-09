@@ -218,7 +218,7 @@ sub handle_error
   $s->response->Status( 500 );
   $s->response->Clear();
   my $error = $s->server->Error( $@ );
-  warn "[Error: @{[ HTTP::Date::time2iso() ]}] @{[ $error->message ]}\n";
+  warn "[Error: @{[ HTTP::Date::time2iso() ]}] $@\n";
   
   return $s->end_request;
 }# end handle_error()
@@ -260,6 +260,7 @@ sub DESTROY
 {
   my $s = shift;
   $s->session->save if $s->session && ! $s->session->is_read_only;
+  $s = { };
   undef(%$s);
 }# end DESTROY()
 

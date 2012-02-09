@@ -83,7 +83,8 @@ sub init_server_root
   {
     if( $^O =~ m{win32}i )
     {
-      $s->{web}{page_cache_root} = "$ENV{TMP}\\PAGE_CACHE";
+      my $temp_root = $ENV{TMP} || $ENV{TEMP};
+      $s->{web}{page_cache_root} = "$temp_root\\PAGE_CACHE";
     }
     else
     {
@@ -93,23 +94,23 @@ sub init_server_root
    
   unless( -d $s->{web}{page_cache_root} )
   {
-    my @parts = split /\//, $s->{web}{page_cache_root};
-    my $root = "/";
+    my @parts = split /[\/\\]/, $s->{web}{page_cache_root};
+    my $root = $^O =~ m{win32}i ? '' : "/";
     while( my $next = shift(@parts) )
     {
       $root .= "$next/";
       mkdir($root) unless -d $root;
-      die "Cannot create path to '@{[ $s->page_cache_root ]}' - stopped at '$root': $!"
+      die "Cannot create path to '@{[ $s->web->page_cache_root ]}' - stopped at '$root': $!"
         unless -d $root;
       chmod(0777, $root);
     }# end while()
   }# end unless()
   
   (my $compiled_root = $s->{web}->{page_cache_root} . '/' . $s->{web}->{application_name}) =~ s/::/\//g;
-  my $folder = "";
-  foreach my $part ( grep { $_ } split /\//, $compiled_root )
+  my $folder = $^O =~ m{win32}i ? '' : "/";
+  foreach my $part ( grep { $_ } split /[\/\\]/, $compiled_root )
   {
-    $folder .= "/$part";
+    $folder .= "$part/";
     unless( -d $folder )
     {
       mkdir($folder);
@@ -282,4 +283,5 @@ Copyright 2008 John Drago.  All rights reserved.
 This software is Free software and is licensed under the same terms as perl itself.
 
 =cut
+
 
