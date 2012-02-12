@@ -4,6 +4,8 @@ package ASP4::ConfigNode::Web;
 use strict;
 use warnings 'all';
 use base 'ASP4::ConfigNode';
+use Carp 'confess';
+use JSON::XS;
 
 
 sub new
@@ -30,15 +32,7 @@ sub new
   
   # Do we have "routes"?:
   eval { require Router::Generic };
-  if( $s->{routes} && ! $@ )
-  {
-    my $router = Router::Generic->new();
-    if( my @routes = eval { @{ $s->routes } } )
-    {
-      map { $router->add_route( %$_ ) } @routes;
-    }# end if()
-    $s->{router} = $router;
-  }# end if()
+  $s->{__has_router} = ! $@;
   
   return $s;
 }# end new()
@@ -60,7 +54,48 @@ sub disable_persistence
 }# end disable_persistence()
 
 
-sub router { shift->{router} }
+sub router
+{
+  my $s = shift;
+  $s->_parse_routes() unless $s->{__parsed_routes}++;
+  $s->{router};
+}
+
+sub routes
+{
+  my $s = shift;
+  return unless $s->{__has_router};
+  $s->_parse_routes() unless $s->{__parsed_routes}++;
+  $s->{routes};
+}# end routes()
+
+
+sub _parse_routes
+{
+  my $s = shift;
+  
+  my @original = @{ $s->{routes} };
+  my $app_root = $s->application_root;
+  @{ $s->{routes} } = map {
+    $_->{include_routes} ? do {
+      my $item = $_;
+      $item->{include_routes} =~ s/\@ServerRoot\@/$app_root/sg;
+      $item->{include_routes} =~ s{\\\\}{\\}g;
+      open my $ifh, '<', $item->{include_routes}
+        or die "Cannot open '$item->{include_routes}' for reading: $!";
+      local $/;
+      my $json = eval { decode_json( scalar(<$ifh>) ) }
+        or confess "Error parsing '$item->{include_routes}': $@";
+      ref($json) eq 'ARRAY'
+        or confess "File '$item->{include_routes}' should be an arrayref but it's a '@{[ ref($json) ]}' instead.";
+      @$json;
+    } : $_
+  } @original;
+  
+  my $router = Router::Generic->new();
+  map { $router->add_route( %$_ ) } @{ $s->{routes} };
+  $s->{router} = $router;
+}# end _parse_routes()
 
 1;# return true:
 

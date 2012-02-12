@@ -48,6 +48,7 @@ sub init_server_root
     pop(@parts);
     join '/', @parts;
   })->();
+  $s->{web}->{project_root} = $project_root;
   no warnings 'uninitialized';
   foreach( @{ $s->{system}->{libs} } )
   {

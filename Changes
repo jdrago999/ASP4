@@ -4,6 +4,9 @@
 
 [CHANGELOG]
 
+2012-02-12    1.080
+  - Added support for multiple external "routes.json" files.
+
 2012-02-07    1.079
   - Errors output to the stderr are now derived directly from $@ not from any
     parsed version of it.
