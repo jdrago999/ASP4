@@ -53,6 +53,7 @@ lib/ASP4/TransHandler.pm
 lib/ASP4/UserAgent.pm
 Makefile.PL
 MANIFEST			This list of files
+META.json
 META.yml
 README.markdown
 runprofiler.sh
@@ -74,6 +75,8 @@ t/010-basic/090-everything.t
 t/020-bench/010-hello.t
 t/030-filters/010-seo.t
 t/040-round2/010-include-missing.t
+t/040-round2/020-api-in-handler.t
+t/040-round2/030-redirect-after-trapinclude.t
 t/050-encoding/010-default.t
 t/999-finish/000-cleanup.t
 t/conf/asp4-config.json
@@ -81,8 +84,10 @@ t/conf/httpd.conf
 t/etc/properties.yaml
 t/etc/test_fixtures.json
 t/etc/test_fixtures.yaml
+t/handlers/dev/api_inside_handler.pm
 t/handlers/dev/encoding/hello.pm
 t/handlers/dev/headers.pm
+t/handlers/dev/redirect_after_trapinclude.pm
 t/handlers/dev/seo_handler.pm
 t/handlers/dev/simple.pm
 t/handlers/dev/speed.pm

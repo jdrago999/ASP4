@@ -25,7 +25,7 @@ sub handler : method
   my $context = ASP4::HTTPContext->new();
   $r->pool->cleanup_register(sub { $context->DESTROY });
   
-  if( uc($r->method) eq 'POST' && $r->headers_in->{'content-type'} =~ m/multipart\/form\-data/ )
+  if( ($r->headers_in->{'content-type'}||'') =~ m/multipart\/form\-data/ )
   {
     $context->{r} = $r;
     if( $@ )

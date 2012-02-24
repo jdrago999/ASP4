@@ -4,6 +4,15 @@
 
 [CHANGELOG]
 
+2012-02-24    1.082
+  - Response->Redirect after Response->TrapInclude was causing the redirect to fail.
+  - This release introduces a hack to fix it, by writing a meta tag to the client.
+
+2012-02-13    1.081
+  - Updated logging of errors so that it outputs something interesting, instead
+    of a blank line.
+  - Running under mod_perl should now correctly support full RESTful interfaces.
+
 2012-02-12    1.080
   - Added support for multiple external "routes.json" files.
 

@@ -208,15 +208,28 @@ sub Redirect
 {
   my ($s, $url) = @_;
   
-  return if $s->context->did_send_headers;
-  
-  $s->Clear;
-  $s->Status( 301 );
-  $s->Expires( "-24H" )
-    unless $s->Expires;
-  $s->SetHeader( Location => $url );
-  $s->End;
-  return $s->Status;
+  if( $s->context->did_send_headers )
+  {
+    # XXX: This is a hack.  It will be removed soon (date:2012-02-24)
+    # ->Redirect after ->TrapInclude caused redirects to fail because headers had
+    # already been sent.  This gets around it for *now* and still keeps the logic
+    # in the handler/asp code clear (no hacks out there).
+    $s->Write(<<"HTML");
+<meta http-equiv="refresh" content="0;url=@{[ $s->context->server->HTMLEncode($url) ]}" />
+HTML
+    $s->Flush;
+    return;
+  }
+  else
+  {
+    $s->Clear;
+    $s->Status( 301 );
+    $s->Expires( "-24H" )
+      unless $s->Expires;
+    $s->SetHeader( Location => $url );
+    $s->End;
+    return $s->Status;
+  }# end if()
 }# end Redirect()
 
 

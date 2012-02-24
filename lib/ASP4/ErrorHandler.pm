@@ -57,7 +57,7 @@ sub send_error
 sub error_html
 {
   my ($s, $error) = @_;
-
+  
   my $msg = <<"ERROR";
 <!DOCTYPE html>
 <html>
@@ -121,10 +121,10 @@ PRE {
 <div class="clear"></div>
 <h3>\%ENV</h3>
 <div class="code"><pre>
-HTTP_REFERER:     '@{[ $Server->HTMLEncode($ENV{HTTP_REFERER}) ]}'
-HTTP_COOKIE:      '@{[ $Server->HTMLEncode($ENV{HTTP_COOKIE}) ]}'
-HTTP_USER_AGENT:  '@{[ $Server->HTMLEncode($ENV{HTTP_USER_AGENT}) ]}'
-REMOTE_ADDR:      '@{[ $Server->HTMLEncode($ENV{REMOTE_ADDR}) ]}'
+HTTP_REFERER:     '@{[ $Server->HTMLEncode($ENV{HTTP_REFERER}||'NONE') ]}'
+HTTP_COOKIE:      '@{[ $Server->HTMLEncode($ENV{HTTP_COOKIE}||'NONE') ]}'
+HTTP_USER_AGENT:  '@{[ $Server->HTMLEncode($ENV{HTTP_USER_AGENT}||'NONE') ]}'
+REMOTE_ADDR:      '@{[ $Server->HTMLEncode($ENV{REMOTE_ADDR}||'NONE') ]}'
 </pre></div>
 <h3>\$Form</h3>
 <div class="code"><pre>@{[ Dumper($Form) ]}</pre></div>

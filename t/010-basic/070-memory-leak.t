@@ -15,7 +15,7 @@ $api->ua->get("/useragent/hello-world.asp");
 for( 1...100 )
 {
   $api->ua->get("/useragent/hello-world.asp");
-  memory_cycle_ok( $api->ua->context );
+  memory_cycle_ok( $api->context );
 }# end for()
 
 

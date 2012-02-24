@@ -14,23 +14,23 @@ sub new
   my ($class, %args) = @_;
   
   my $s = bless {
-    status  => 200,
+    status        => 200,
     content_type  => 'text/plain',
     buffer        => '',
     document_root => ASP4::ConfigLoader->load()->web->www_root,
-    headers_in  => { },
-    headers_out => { },
-    uri     => $args{uri} || $ENV{REQUEST_URI},
-    args    => $args{args} || $ENV{QUERY_STRING},
-    pnotes  => { },
-    method  => $args{method},
-    pool    => ASP4::Mock::Pool->new(),
-    connection  => ASP4::Mock::Connection->new(),
+    headers_in    => { },
+    headers_out   => { },
+    uri           => $args{uri} || $ENV{REQUEST_URI},
+    args          => $args{args} || $ENV{QUERY_STRING},
+    pnotes        => { },
+    method        => $args{method},
+    pool          => ASP4::Mock::Pool->new(),
+    connection    => ASP4::Mock::Connection->new(),
   }, $class;
+  
   weaken($s->{connection});
   $s->{err_headers_out} = $s->{headers_out};
-  
-  $s->{filename} = $s->document_root . $s->uri;
+  $s->{filename}        = $s->document_root . $s->uri;
   
   return $s;
 }# end new()
@@ -76,7 +76,6 @@ sub buffer          { shift->{buffer} } # Not documented:
 
 # Public methods:
 sub print { my ($s,$str) = @_; $s->{buffer} .= $str; }
-#sub content_type { my $s = shift; @_ ? $s->{content_type} = +shift : $s->{content_type} }
 sub content_type
 {
   my ($s, $type) = @_;

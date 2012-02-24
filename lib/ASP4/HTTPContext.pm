@@ -217,8 +217,9 @@ sub handle_error
   
   $s->response->Status( 500 );
   $s->response->Clear();
+  my $err_str = $@;
   my $error = $s->server->Error( $@ );
-  warn "[Error: @{[ HTTP::Date::time2iso() ]}] $@\n";
+  warn "[Error: @{[ HTTP::Date::time2iso() ]}] $err_str\n";
   
   return $s->end_request;
 }# end handle_error()

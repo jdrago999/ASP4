@@ -69,6 +69,8 @@ sub Mail
   my $s = shift;
   
   Mail::Sendmail::sendmail( @_ );
+  die $Mail::Sendmail::error if $Mail::Sendmail::error;
+  return $Mail::Sendmail::log;
 }# end Mail()
 
 
