@@ -13,7 +13,6 @@ use ASP4::ConfigLoader;
 use ASP4::SimpleCGI;
 use ASP4::Mock::RequestRec;
 
-
 sub new
 {
   return bless {
@@ -25,7 +24,7 @@ sub new
   }, shift;
 }# end new()
 
-sub context { ASP4::HTTPContext->current }
+sub context { shift->{context} }
 sub config  { chdir(shift->{cwd}); ASP4::ConfigLoader->load }
 
 
@@ -34,7 +33,7 @@ sub get
   my ($s, $uri) = @_;
   
   chdir( $s->{cwd} );
-  undef($ASP4::HTTPContext::_instance);
+  
   my $req = GET $uri;
   my $referer = $ENV{HTTP_REFERER};
   %ENV = (
@@ -50,8 +49,14 @@ sub get
   my $cgi = $s->_setup_cgi( $req );
   my ($uri_no_args, $querystring) = split /\?/, $uri;
   my $r = ASP4::Mock::RequestRec->new( uri => $uri_no_args, args => $querystring );
-  $s->context->setup_request( $r, $cgi );
-  return $s->_setup_response( $s->context->execute() );
+  
+  $s->{context} = ASP4::HTTPContext->new( is_subrequest => $ASP4::HTTPContext::_instance ? 1 : 0 );
+  
+  return do {
+    local $ASP4::HTTPContext::_instance = $s->context;
+    $s->context->setup_request( $r, $cgi );
+    $s->_setup_response( $s->context->execute() );
+  };
 }# end get()
 
 
@@ -60,7 +65,7 @@ sub post
   my ($s, $uri, $args) = @_;
   
   chdir( $s->{cwd} );
-  undef($ASP4::HTTPContext::_instance);
+  
   $args ||= [ ];
   my $req = POST $uri, $args;
   my $referer = $ENV{HTTP_REFERER};
@@ -76,8 +81,12 @@ sub post
   my $cgi = $s->_setup_cgi( $req );
   my ($uri_no_args, $querystring) = split /\?/, $uri;
   my $r = ASP4::Mock::RequestRec->new( uri => $uri_no_args, args => $querystring );
-  $s->context->setup_request( $r, $cgi );
-  return $s->_setup_response( $s->context->execute() );
+  $s->{context} = ASP4::HTTPContext->new( is_subrequest => $ASP4::HTTPContext::_instance ? 1 : 0 );
+  return do {
+    local $ASP4::HTTPContext::_instance = $s->context;
+    $s->context->setup_request( $r, $cgi );
+    $s->_setup_response( $s->context->execute() );
+  };
 }# end post()
 
 
@@ -86,7 +95,7 @@ sub upload
   my ($s, $uri, $args) = @_;
   
   chdir( $s->{cwd} );
-  undef($ASP4::HTTPContext::_instance);
+  
   $args ||= [ ];
   my $req = POST $uri, Content_Type => 'form-data', Content => $args;
   my $referer = $ENV{HTTP_REFERER};
@@ -102,8 +111,12 @@ sub upload
   my $cgi = $s->_setup_cgi( $req );
   my ($uri_no_args, $querystring) = split /\?/, $uri;
   my $r = ASP4::Mock::RequestRec->new( uri => $uri_no_args, args => $querystring );
-  $s->context->setup_request( $r, $cgi );
-  return $s->_setup_response( $s->context->execute() );
+  $s->{context} = ASP4::HTTPContext->new( is_subrequest => $ASP4::HTTPContext::_instance ? 1 : 0 );
+  return do {
+    local $ASP4::HTTPContext::_instance = $s->context;
+    $s->context->setup_request( $r, $cgi );
+    $s->_setup_response( $s->context->execute() );
+  };
 }# end upload()
 
 
@@ -112,7 +125,6 @@ sub submit_form
   my ($s, $form) = @_;
   
   chdir( $s->{cwd} );
-  undef($ASP4::HTTPContext::_instance);
   
   my $temp_referrer = $ENV{HTTP_REFERER};
   my $req = $form->click;
@@ -129,8 +141,12 @@ sub submit_form
   my $cgi = $s->_setup_cgi( $req );
   my ($uri_no_args, $querystring) = split /\?/, $req->uri;
   my $r = ASP4::Mock::RequestRec->new( uri => $uri_no_args, args => $querystring );
-  $s->context->setup_request( $r, $cgi );
-  return $s->_setup_response( $s->context->execute() );
+  $s->{context} = ASP4::HTTPContext->new( is_subrequest => $ASP4::HTTPContext::_instance ? 1 : 0 );
+  return do {
+    local $ASP4::HTTPContext::_instance = $s->context;
+    $s->context->setup_request( $r, $cgi );
+    $s->_setup_response( $s->context->execute() );
+  };
 }# end submit_form()
 
 
@@ -206,7 +222,7 @@ sub _setup_response
   
   $s->context->r->pool->call_cleanup_handlers();
   
-  context->DESTROY;
+  $s->context->DESTROY;
   
   return $response;
 }# end _setup_response()

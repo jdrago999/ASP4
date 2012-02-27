@@ -208,28 +208,13 @@ sub Redirect
 {
   my ($s, $url) = @_;
   
-  if( $s->context->did_send_headers )
-  {
-    # XXX: This is a hack.  It will be removed soon (date:2012-02-24)
-    # ->Redirect after ->TrapInclude caused redirects to fail because headers had
-    # already been sent.  This gets around it for *now* and still keeps the logic
-    # in the handler/asp code clear (no hacks out there).
-    $s->Write(<<"HTML");
-<meta http-equiv="refresh" content="0;url=@{[ $s->context->server->HTMLEncode($url) ]}" />
-HTML
-    $s->Flush;
-    return;
-  }
-  else
-  {
-    $s->Clear;
-    $s->Status( 301 );
-    $s->Expires( "-24H" )
-      unless $s->Expires;
-    $s->SetHeader( Location => $url );
-    $s->End;
-    return $s->Status;
-  }# end if()
+  $s->Clear;
+  $s->Status( 301 );
+  $s->Expires( "-24H" )
+    unless $s->Expires;
+  $s->SetHeader( Location => $url );
+  $s->End;
+  return $s->Status;
 }# end Redirect()
 
 
@@ -256,26 +241,51 @@ sub _subrequest
 {
   my ($s, $file, $args) = @_;
   
-  $s->context->add_buffer();
+  my $context = ASP4::HTTPContext->new( is_subrequest => 1 );
   my $original_r = $s->context->r;
   my $root = $s->context->config->web->www_root;
+  my $cgi = $s->context->cgi;
   (my $uri = $file) =~ s/^\Q$root\E//;
   my $r = ASP4::Mock::RequestRec->new(
     uri   => $uri,
     args  => $original_r->args,
   );
-  local $ENV{SCRIPT_NAME} = $uri;
-  local $ENV{SCRIPT_FILENAME} = $file;
-  my $original_status = $s->Status();
-  $s->context->setup_request( $r, $s->context->cgi );
-  $s->context->execute( $args, 1 );
-  $s->Flush;
-  $s->Status( $original_status );
-  my $buffer = $s->context->purge_buffer();
-  $s->context->{r} = $original_r;
-  $s->context->did_end( 0 );
-  return $r->buffer;
+  SCOPE: {
+    local $ASP4::HTTPContext::_instance = $context;
+    local $ENV{SCRIPT_NAME} = $uri;
+    local $ENV{SCRIPT_FILENAME} = $file;
+    $context->setup_request( $r, $cgi );
+    $context->execute( $args, 1 );
+  };
+  
+  return $context->r->buffer;
 }# end _subrequest()
+
+
+#sub _subrequest
+#{
+#  my ($s, $file, $args) = @_;
+#  
+#  $s->context->add_buffer();
+#  my $original_r = $s->context->r;
+#  my $root = $s->context->config->web->www_root;
+#  (my $uri = $file) =~ s/^\Q$root\E//;
+#  my $r = ASP4::Mock::RequestRec->new(
+#    uri   => $uri,
+#    args  => $original_r->args,
+#  );
+#  local $ENV{SCRIPT_NAME} = $uri;
+#  local $ENV{SCRIPT_FILENAME} = $file;
+#  my $original_status = $s->Status();
+#  $s->context->setup_request( $r, $s->context->cgi );
+#  $s->context->execute( $args, 1 );
+#  $s->Flush;
+#  $s->Status( $original_status );
+#  my $buffer = $s->context->purge_buffer();
+#  $s->context->{r} = $original_r;
+#  $s->context->did_end( 0 );
+#  return $r->buffer;
+#}# end _subrequest()
 
 
 sub DESTROY

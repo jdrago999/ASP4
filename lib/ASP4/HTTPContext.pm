@@ -17,13 +17,14 @@ use vars '$_instance';
 
 sub new
 {
-  my ($class) = @_;
+  my ($class, %args) = @_;
   
   my $s = bless {
     config => ASP4::ConfigLoader->load,
     buffer => [ ASP4::OutBuffer->new ],
     stash  => { },
     headers_out => HTTP::Headers->new(),
+    is_subrequest => $args{is_subrequest},
   }, $class;
   $s->config->_init_inc();
   
@@ -33,7 +34,7 @@ sub new
   $s->config->load_class( $s->config->data_connections->session->manager );
   $s->config->load_class( $web->filter_resolver );
   
-  return $_instance = $s;
+  return $s->is_subrequest ? $s : $_instance = $s;
 }# end new()
 
 
@@ -73,6 +74,7 @@ sub config    { shift->{config} }
 sub stash     { shift->{stash} }
 
 # More advanced:
+sub is_subrequest { shift->{is_subrequest} }
 sub cgi         { shift->{cgi} }
 sub r           { shift->{r} }
 sub handler     { shift->{handler} }

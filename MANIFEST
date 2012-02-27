@@ -53,7 +53,6 @@ lib/ASP4/TransHandler.pm
 lib/ASP4/UserAgent.pm
 Makefile.PL
 MANIFEST			This list of files
-META.json
 META.yml
 README.markdown
 runprofiler.sh

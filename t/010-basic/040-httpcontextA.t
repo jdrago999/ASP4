@@ -5,6 +5,7 @@ use warnings 'all';
 use Test::More 'no_plan';
 use ASP4::ConfigLoader;
 use ASP4::SimpleCGI;
+use ASP4::API;
 my $config; BEGIN { $config = ASP4::ConfigLoader->load }
 
 use Carp 'confess';
@@ -82,8 +83,6 @@ AFTER INCLUDE2
 After TrapInclude:
 ), "Response.TrapInclude works properly";
 };
-
-
 
 sub do_request
 {
