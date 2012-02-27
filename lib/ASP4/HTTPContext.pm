@@ -18,6 +18,8 @@ use ASP4::HandlerResolver;
 
 our $_instance;
 
+# This class is a contextual-singleton.
+# One instance per "context".
 sub current
 {
   my $class = shift;
@@ -41,12 +43,13 @@ sub new
   return $s;
 }# end new()
 
+
 # Read-only Properties:
 sub is_subrequest { shift->{is_subrequest} }
 sub buffer { shift->{buffer} }
 
-# Lazy Read-only Properties:
 
+# Lazy Read-only Properties:
 sub session
 {
   my $s = shift;
@@ -129,12 +132,20 @@ sub cleanup_handlers
   $s->{cleanup_handlers};
 }# end cleanup_handlers()
 
+sub async_cleanup_handlers
+{
+  my $s = shift;
+  $s->{async_cleanup_handlers} ||= [ ];
+  $s->{async_cleanup_handlers};
+}# end cleanup_handlers()
+
+
 # Read-write Properties:
 sub env { my $s = shift; @_ ? $s->{env} = shift : $s->{env} }
 sub cgi { my $s = shift; @_ ? $s->{cgi} = shift : $s->{cgi} }
 
-# Public methods:
 
+# Public methods:
 sub rprint { $_[0]->{buffer} .= $_[1] if defined($_[1]) }
 
 sub psgi_response
@@ -155,7 +166,9 @@ sub setup_request
   my ($s, $env) = @_;
   
   # Fixup the env first:
-  $env = $env->{REQUEST_METHOD} =~ m{^(GET|HEAD)$} ? $env : $s->_sanitize_psgi_env_input( $env );
+  $env  = $env->{REQUEST_METHOD} =~ m{^(GET|HEAD)$}
+            ? $env
+            : $s->_sanitize_psgi_env_input( $env );
   my ($uri_no_args) = split /\?/, $env->{REQUEST_URI};
   if( $env->{REQUEST_URI} =~ m{^/handlers/} )
   {
@@ -217,13 +230,6 @@ sub add_cleanup_handler
   push @{ $s->cleanup_handlers }, sub { $code->( @args ) };
 }# end add_cleanup_handler()
 
-sub async_cleanup_handlers
-{
-  my $s = shift;
-  $s->{async_cleanup_handlers} ||= [ ];
-  $s->{async_cleanup_handlers};
-}# end cleanup_handlers()
-
 sub add_async_cleanup_handler
 {
   my ($s, $code, @args) = @_;
@@ -232,7 +238,6 @@ sub add_async_cleanup_handler
 
 
 # Private, internal methods:
-
 sub do_disable_session_state
 {
   my $s = shift;
@@ -283,21 +288,22 @@ sub _sanitize_psgi_env_input
   {
     my $data_in = '';
     local $SIG{__WARN__} = sub { };
-#    if( ref($ifh) eq 'GLOB' )
- eval   {
+    eval {
       while( defined(my $line = <$ifh>) )
       {
         $data_in .= $line;
       }# end while()
       close($ifh);
       $psgi_env->{'psgi.input'} = IO::Scalar->new( \$data_in );
-    }# end if()
+    };# end eval{}
   }# end if()
   
   return $psgi_env;
 }# end _sanitize_psgi_env_input()
 
 
+# DESTROY is called explicitly by ASP4::UserAgent and ASP4::PSGI after the
+# psgi_response has been collected.
 sub DESTROY
 {
   my $s = shift;

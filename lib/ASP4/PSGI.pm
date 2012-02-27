@@ -21,8 +21,12 @@ sub app
     }# end if()
     $context->setup_request( $env );
     $context->execute();
-
-    return $context->psgi_response;
+    
+    # TODO: $context should be destroyed immediately upon scope exit so we don't
+    # have to call its DESTROY method explicitly.
+    my $response = $context->psgi_response;
+    $context->DESTROY;
+    return $response;
   };
 }# end app()
 
