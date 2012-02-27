@@ -30,7 +30,7 @@ sub load
   
   my $s = ref($class) ? $class : $class->new();
   my $path = $s->config_filename();
-  
+
   my $file_time = (stat($path))[7];
   if( exists($cache->{$path}) && ( $file_time <= $cache->{$path}->{timestamp} ) )
   {
@@ -71,11 +71,13 @@ sub load
   );
   
   (my $where = $path) =~ s/\/conf\/[^\/]+$//;
+  my $config = ASP4::Config->new( %args );
   $cache->{$path} = {
-    data      => ASP4::Config->new( %args ),
+    data      => $config,
     timestamp => $file_time,
   };
   
+  $config->init();
   $cache->{$path}->{data};
 }# end load()
 

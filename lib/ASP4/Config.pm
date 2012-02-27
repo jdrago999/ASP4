@@ -25,19 +25,6 @@ sub new
   
   my $s = bless \%args, $class;
   
-  push @INC, grep { my $dir = $_; $_ && ! grep { $dir eq $_ } @INC } @{ $s->system->libs };
-  map { $ENV{$_} = $s->system->env_vars->$_ } keys %{ $s->system->env_vars };
-  map { $s->load_class( $_ ) } grep { $_ } @{ $s->system->load_modules };
-  # TODO: Load $Config->app modules too.
-  
-  if( my $class = $s->data_connections->session->manager )
-  {
-    $s->load_class( $class );
-    
-    $s->data_connections->session->{session_timeout} =~ s{^\*$}{0};
-      
-  }# end if()
-  
   return $s;
 }# end new()
 
@@ -48,6 +35,23 @@ sub app { $_[0]->{app} ||= [ ]; $_[0]->{app} }
 sub data_connections { $_[0]->{data_connections} }
 
 sub load_class { return unless $_[1]; Class::Load::load_class( $_[1] ) }
+
+sub init
+{
+  my $s = shift;
+  
+  push @INC, grep { my $dir = $_; $_ && ! grep { $dir eq $_ } @INC } @{ $s->system->libs };
+  map { $ENV{$_} = $s->system->env_vars->$_ } keys %{ $s->system->env_vars };
+  map { $s->load_class( $_ ) } grep { $_ } @{ $s->system->load_modules };
+  
+  if( my $class = $s->data_connections->session->manager )
+  {
+    $s->load_class( $class );
+    $s->data_connections->session->{session_timeout} =~ s{^\*$}{0};
+  }# end if()
+
+  map { $s->load_class( $_ ) } grep { $_ } @{ $s->app };
+}# end init()
 
 
 

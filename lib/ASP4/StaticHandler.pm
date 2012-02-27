@@ -6,6 +6,7 @@ use strict;
 use warnings 'all';
 use base 'ASP4::FormHandler';
 use vars __PACKAGE__->VARS;
+use File::MimeInfo::Magic;
 
 sub run
 {
@@ -22,13 +23,8 @@ sub run
     $Response->End;
     return 404;
   }# end unless()
-  open my $ifh, '<', $file
-    or die "Cannot open '$file' for reading: $!";
-  local $/;
-  $Response->SetHeader('content-length' => (stat($file))[7] );
   
-  my ($ext) = $file =~ m{\.([^\.]+)$};
-  my %types = (
+  my %known_types = (
     swf   => 'application/x-shockwave-flash',
     xml   => 'text/xml',
     jpg   => 'image/jpeg',
@@ -44,7 +40,14 @@ sub run
     html  => 'text/html',
     txt   => 'text/plain',
   );
-  my $type = $types{lc($ext)} || 'application/octet-stream';
+  my ($ext) = $file =~ m{\.([^\.]+)$};
+  my $type = $known_types{lc($ext)} || mimetype($file) || 'application/octet-stream';
+  
+  open my $ifh, '<', $file
+    or die "Cannot open '$file' for reading: $!";
+  local $/;
+  $Response->SetHeader('content-length' => (stat($file))[7] );
+  
   $Response->ContentType( $type );
   
   my ($filename) = $file =~ m{([^/]+)$};

@@ -302,8 +302,8 @@ sub _sanitize_psgi_env_input
 }# end _sanitize_psgi_env_input()
 
 
-# DESTROY is called explicitly by ASP4::UserAgent and ASP4::PSGI after the
-# psgi_response has been collected.
+# DESTROY causes all cleanup handlers to be executed.
+# 'async' cleanup handlers are executed within a forked process.
 sub DESTROY
 {
   my $s = shift;

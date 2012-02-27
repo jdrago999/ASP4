@@ -29,8 +29,7 @@ requires    'CGI'                     => 3.43;    # For...cgi stuff...
 requires    'HTTP::Body'              => 0;
 requires    'JSON::XS'                => 0;       # For Configs
 requires    'Term::ReadKey'           => 0;       # For asphelper script.
-
-recommends  'ASP4x::Router'           => 0.020;   # For routing.
+requires    'File::MimeInfo::Magic'   => 0;       # Determining mime types of static files.
 
 install_script 'sbin/asp4';
 install_script 'sbin/asp4-prep';
