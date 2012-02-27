@@ -1,0 +1,3 @@
+use ASP4::PSGI;
+
+ASP4::PSGI->app;
