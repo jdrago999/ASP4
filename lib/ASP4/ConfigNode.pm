@@ -1,44 +1,27 @@
 
-package
-ASP4::ConfigNode;
+package ASP4::ConfigNode;
 
 use strict;
 use warnings 'all';
 use Carp 'confess';
 
-
 sub new
 {
-  my ($class, $ref) = @_;
-  local $SIG{__DIE__} = \&Carp::confess;
-  my $s = bless $ref, $class;
-  $s->init_keys();
-  $s;
-}# end new()
-
-
-sub init_keys
-{
-  my $s = shift;
+  my ($class, %args) = @_;
   
-  foreach my $key ( grep { ref($s->{$_}) eq 'HASH' } keys(%$s) )
+  local $SIG{__DIE__} = \&confess;
+
+  my $s = bless \%args, $class;
+  foreach my $key ( grep { ref($s->{$_}) eq 'HASH' } keys %$s )
   {
-    if( $key eq 'web' )
-    {
-      require ASP4::ConfigNode::Web;
-      $s->{$key} = ASP4::ConfigNode::Web->new( $s->{$key} );
-    }
-    elsif( $key eq 'system' )
-    {
-      require ASP4::ConfigNode::System;
-      $s->{$key} = ASP4::ConfigNode::System->new( $s->{$key} );
-    }
-    else
-    {
-      $s->{$key} = __PACKAGE__->new( $s->{$key} );
-    }# end if()
+    $s->{$key} = __PACKAGE__->new( %{ $s->{$key} } );
   }# end foreach()
-}# end init_keys()
+  
+  $s->init();
+  return $s;
+}# end BUILD()
+
+sub init { }
 
 
 sub AUTOLOAD

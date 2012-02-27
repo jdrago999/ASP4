@@ -11,9 +11,10 @@ sub run
 {
   my ($s, $context) = @_;
   
-  my $file = $ENV{SCRIPT_FILENAME} ?
-               $ENV{SCRIPT_FILENAME} :
-                 $Server->MapPath( (split /\?/, $ENV{REQUEST_URI})[0] );
+  my $env = $context->cgi->{psgi_env};
+  my $file = $env->{SCRIPT_FILENAME} ?
+               $env->{SCRIPT_FILENAME} :
+                 $Server->MapPath( (split /\?/, $env->{REQUEST_URI})[0] );
   
   unless( $file && -f $file )
   {
@@ -41,6 +42,7 @@ sub run
     js    => 'text/javascript',
     svg   => 'image/svg+xml',
     html  => 'text/html',
+    txt   => 'text/plain',
   );
   my $type = $types{lc($ext)} || 'application/octet-stream';
   $Response->ContentType( $type );

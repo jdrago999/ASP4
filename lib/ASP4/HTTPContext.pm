@@ -3,350 +3,329 @@ package ASP4::HTTPContext;
 
 use strict;
 use warnings 'all';
-use HTTP::Date ();
-use HTTP::Headers ();
-use ASP4::ConfigLoader;
-use ASP4::Request;
-use ASP4::Response;
-use ASP4::Server;
-use ASP4::OutBuffer;
-use ASP4::SessionStateManager::NonPersisted;
-use Carp 'confess';
+use CGI::PSGI;
+use IO::Scalar;
 
-use vars '$_instance';
+use Plack::Request;
+use ASP4::HeadersOut;
+use ASP4::Response;
+use ASP4::Request;
+use ASP4::Server;
+use ASP4::SessionStateManager::NonPersisted;
+use ASP4::StaticHandler;
+use ASP4::PageLoader;
+use ASP4::HandlerResolver;
+
+our $_instance;
+
+sub current
+{
+  my $class = shift;
+  
+  $_instance ||= $class->new();
+  
+  return $_instance;
+}# end current()
 
 sub new
 {
-  my ($class) = @_;
+  my ($class, %args) = @_;
   
   my $s = bless {
-    config => ASP4::ConfigLoader->load,
-    buffer => [ ASP4::OutBuffer->new ],
-    stash  => { },
-    headers_out => HTTP::Headers->new(),
+    buffer        => '',
+    is_subrequest => $args{is_subrequest} ? 1 : 0
   }, $class;
-  $s->config->_init_inc();
   
-  my $web = $s->config->web;
-  $s->config->load_class( $web->handler_resolver );
-  $s->config->load_class( $web->handler_runner );
-  $s->config->load_class( $s->config->data_connections->session->manager );
-  $s->config->load_class( $web->filter_resolver );
+  $_instance = $s unless $s->is_subrequest;
   
-  return $_instance = $s;
+  return $s;
 }# end new()
 
+# Read-only Properties:
+sub is_subrequest { shift->{is_subrequest} }
+sub buffer { shift->{buffer} }
 
-sub setup_request
+# Lazy Read-only Properties:
+
+sub session
 {
-  my ($s, $r, $cgi) = @_;
+  my $s = shift;
   
-  $ENV{DOCUMENT_ROOT} = $r->document_root;
-  $s->{r} = $r;
-  $s->{cgi} = $cgi;
-  
-  # Must instantiate $_instance before creating the other objects:
-  $s->{request}   ||= ASP4::Request->new();
-  $s->{response}  ||= ASP4::Response->new();
-  $s->{server}    ||= ASP4::Server->new();
-  
-  if( $s->do_disable_session_state )
+  return $s->{session} if $s->{session};
+  my $session_class = $s->do_disable_session_state
+                        ? 'ASP4::SessionStateManager::NonPersisted'
+                        : $s->config->data_connections->session->manager;
+  $s->{session} ||= $session_class->new( );
+  $s->{session};
+}# end server()
+
+sub server
+{
+  my $s = shift;
+  $s->{server} ||= ASP4::Server->new();
+  $s->{server};
+}# end server()
+
+sub request
+{
+  my $s = shift;
+  $s->{request} ||= ASP4::Request->new();
+  $s->{request};
+}# end request()
+
+sub response
+{
+  my $s = shift;
+  $s->{response} ||= ASP4::Response->new();
+  $s->{response};
+}# end response()
+
+sub config
+{
+  my $s = shift;
+  $s->{config} ||= ASP4::ConfigLoader->load();
+  $s->{config};
+}# end config()
+
+sub stash
+{
+  my $s = shift;
+  $s->{stash} ||= { };
+  $s->{stash};
+}# end stash()
+
+sub headers_out
+{
+  my $s = shift;
+  $s->{headers_out} ||= ASP4::HeadersOut->new;
+  $s->{headers_out};
+}# end headers_out()
+
+sub headers_in
+{
+  my $s = shift;
+  $s->{headers_in} ||= Plack::Request->new( $s->cgi->{psgi_env} )->headers;
+  $s->{headers_in};
+}# end headers_in()
+
+sub did_end
+{
+  my $s = shift;
+  if( @_ )
   {
-    $s->{session} ||= ASP4::SessionStateManager::NonPersisted->new( $s->r );
+    $s->{did_end} = shift;
   }
   else
   {
-    $s->{session} ||= $s->config->data_connections->session->manager->new( $s->r );
+    $s->{did_end} //= 0;  #//
   }# end if()
-  
-  return $_instance;
-}# end setup_request()
+  $s->{did_end};
+}# end did_end()
 
-
-# Intrinsics:
-sub current   { $_instance || shift->new }
-sub request   { shift->{request} }
-sub response  { shift->{response} }
-sub server    { shift->{server} }
-sub session   { shift->{session} }
-sub config    { shift->{config} }
-sub stash     { shift->{stash} }
-
-# More advanced:
-sub cgi         { shift->{cgi} }
-sub r           { shift->{r} }
-sub handler     { shift->{handler} }
-sub headers_out { shift->{headers_out} }
-sub content_type  { my $s = shift; $s->r->content_type( @_ ) }
-sub status        { my $s = shift; $s->r->status( @_ ) }
-sub did_send_headers  { shift->{did_send_headers} }
-sub did_end {
-  my $s = shift;
-  @_ ? $s->{did_end} = shift : $s->{did_end};
-}
-
-sub rprint {
-  my ($s,$str) = @_;
-  $s->buffer->add( $str );
-}
-
-sub rflush {
-  my $s = shift;
-  $s->send_headers;
-  $s->r->print( $s->buffer->data );
-  $s->r->rflush;
-  $s->rclear;
-}
-
-sub rclear {
-  my $s = shift;
-  $s->buffer->clear;
-}
-
-sub send_headers
+sub cleanup_handlers
 {
   my $s = shift;
-  return if $s->{did_send_headers};
-  
-  my $headers = $s->headers_out;
-  while( my ($k,$v) = each(%$headers) )
-  {
-    $s->r->err_headers_out->{$k} = $v;
-  }# end while()
+  $s->{cleanup_handlers} ||= [ ];
+  $s->{cleanup_handlers};
+}# end cleanup_handlers()
 
-  $s->r->rflush;
-  $s->{did_send_headers} = 1;
-}# end send_headers()
+# Read-write Properties:
+sub env { my $s = shift; @_ ? $s->{env} = shift : $s->{env} }
+sub cgi { my $s = shift; @_ ? $s->{cgi} = shift : $s->{cgi} }
 
-# Here be dragons:
-sub buffer        { shift->{buffer}->[-1] }
-sub add_buffer    {
+# Public methods:
+
+sub rprint { $_[0]->{buffer} .= $_[1] if defined($_[1]) }
+
+sub psgi_response
+{
   my $s = shift;
-  $s->rflush;
-  push @{$s->{buffer}}, ASP4::OutBuffer->new;
-}
-sub purge_buffer  { shift( @{shift->{buffer}} ) }
+  
+  return [
+    $s->response->Status,
+    $s->headers_out->psgi_headers,
+    [
+      $s->buffer
+    ]
+  ];
+}# end psgi_response()
+
+sub setup_request
+{
+  my ($s, $env) = @_;
+  
+  # Fixup the env first:
+  $env = $env->{REQUEST_METHOD} =~ m{^(GET|HEAD)$} ? $env : $s->_sanitize_psgi_env_input( $env );
+  my ($uri_no_args) = split /\?/, $env->{REQUEST_URI};
+  if( $env->{REQUEST_URI} =~ m{^/handlers/} )
+  {
+    $env->{SCRIPT_NAME} = $uri_no_args;
+  }
+  else
+  {
+    my $www_root = $s->config->web->www_root;
+    my $path = $www_root . $uri_no_args;
+    if( -d $path )
+    {
+      # Expand /folder/ to /folder/index.asp
+      $uri_no_args =~ s{/$}{};
+      $uri_no_args .= '/index.asp';
+    }# end if()
+    $env->{SCRIPT_NAME} = $uri_no_args;
+  }# end if()
+  
+  # Now assign it:
+  $s->env( $env );
+  $s->cgi( CGI::PSGI->new( $s->env ) );
+  map { $ENV{$_} = $env->{$_} } grep { defined $env->{$_} && $_ =~ m{^[A-Z]} } keys %$env;
+  
+  return $s;
+}# end setup_request()
 
 
 sub execute
 {
-  my ($s, $args, $is_include) = @_;
+  my ($s, $args) = @_;
   
-  unless( $is_include )
+  unless( $s->is_subrequest )
   {
-    # Set up and execute any matching request filters:
-    my $resolver = $s->config->web->filter_resolver;
-    foreach my $filter ( $resolver->new()->resolve_request_filters( $s->r->uri ) )
+    $ENV{REQUEST_URI} = $s->env->{REQUEST_URI};
+    my $filter_resolver = ASP4::FilterResolver->new();
+    my @filter_classes  = $s->_resolve_request_filters($s->env->{SCRIPT_NAME}, $s->env->{REQUEST_METHOD} );
+    foreach my $filter_class (  @filter_classes )
     {
-      $s->config->load_class( $filter->class );
-      $filter->class->init_asp_objects( $s );
-      my $IS_FILTER = 1;
-      my $res = $s->handle_phase(sub{ $filter->class->new()->run( $s ) }, $IS_FILTER);
-      if( $s->did_end || ( defined($res) && $res != -1 ) )
+      # URI might have changed:
+      $s->config->load_class( $filter_class );
+      $filter_class->init_asp_objects( $s );
+      my $res = $filter_class->new()->run( $s );
+      if( $s->did_end || ( defined($res) && $res ne '-1' ) )
       {
         return $res;
       }# end if()
     }# end foreach()
   }# end unless()
   
-  eval {
-    $s->{handler} = $s->config->web->handler_resolver->new()->resolve_request_handler( $s->r->uri );
-  };
-  
-  if( $@ )
-  {
-    $s->server->{LastError} = $@;
-    return $s->handle_error;
-  }# end if()
-
-  return $s->response->Status( 404 ) unless $s->{handler};
-  
-  eval {
-    $s->config->load_class( $s->handler );
-    $s->config->web->handler_runner->new()->run_handler( $s->handler, $args );
-  };
-  
-  if( $@ )
-  {
-    $s->server->{LastError} = $@;
-    return $s->handle_error;
-  }# end if()
-  
-  $s->response->Flush;
-  my $res = $s->end_request();
-  
-  $res = 0 if $res =~ m/^200/;
-  return $res;
+  my $handler_class = ASP4::HandlerResolver->new->resolve_request_handler( $s->env->{SCRIPT_NAME}, $s->env->{REQUEST_METHOD} )
+    or return $s->response->Status( 404 );
+  $handler_class->init_asp_objects( $s )->new->run( $s, $args );
 }# end execute()
 
 
-sub handle_phase
+sub add_cleanup_handler
 {
-  my ($s, $ref, $is_filter) = @_;
-  
-  my $res = eval { $ref->( ) };
-  if( $@ )
-  {
-    $s->handle_error;
-  }# end if()
-  
-  # Undef on success:
-  if( $is_filter )
-  {
-    if( defined($res) && $res > -1 )
-    {
-      $s->response->Status( $res );
-      return $res;
-    }
-    else
-    {
-      return;
-    }# end if()
-  }
-  else
-  {
-    return if (! defined($res)) || $res == -1;
-    return $s->response->Status =~ m/^200/ ? undef : $s->response->Status;
-  }# end if()
-}# end handle_phase()
+  my ($s, $code, @args) = @_;
+  push @{ $s->cleanup_handlers }, sub { $code->( @args ) };
+}# end add_cleanup_handler()
 
-
-sub handle_error
+sub async_cleanup_handlers
 {
   my $s = shift;
-  
-  $s->response->Status( 500 );
-  $s->response->Clear();
-  my $err_str = $@;
-  my $error = $s->server->Error( $@ );
-  warn "[Error: @{[ HTTP::Date::time2iso() ]}] $err_str\n";
-  
-  return $s->end_request;
-}# end handle_error()
+  $s->{async_cleanup_handlers} ||= [ ];
+  $s->{async_cleanup_handlers};
+}# end cleanup_handlers()
 
-
-sub end_request
+sub add_async_cleanup_handler
 {
-  my $s = shift;
-  
-  $s->response->End;
-  my $res = $s->response->Status =~ m/^200/ ? 0 : $s->response->Status;
-  
-  return $res;
-}# end end_request()
+  my ($s, $code, @args) = @_;
+  push @{ $s->async_cleanup_handlers }, sub { $code->( @args ) };
+}# end add_async_cleanup_handler()
 
+
+# Private, internal methods:
 
 sub do_disable_session_state
 {
-  my ($s) = @_;
+  my $s = shift;
+  $s->{do_disable_session_state} //= do { #/#keep gedit happy:
+    my ($uri) = split /\?/, $s->env->{REQUEST_URI};
+    
+    grep {
+      $_->{uri_equals}
+        ? $_->{uri_equals} eq $uri
+        : $_->{uri_match}
+          ? $uri =~ m{^$_->{uri_match}$}
+          : 0
+    } @{ $s->config->web->disable_persistence };
+  };
   
-#  my ($uri) = split /\?/, $s->r->uri;
-  my ($uri) = split /\?/, $ENV{REQUEST_URI} || $s->r->uri;
-  my ($yes) = grep { $_->disable_session } grep {
-    if( my $pattern = $_->uri_match )
-    {
-      $uri =~ m/^$pattern$/
-    }
-    else
-    {
-      $uri eq $_->uri_equals;
-    }# end if()
-  } $s->config->web->disable_persistence;
-  
-  return $yes;
+  $s->{do_disable_session_state};
 }# end do_disable_session_state()
+
+sub _resolve_request_filters
+{
+  my ($s, $uri, $method) = @_;
+  
+  my @out = ( );
+  my ($uri_no_args) = split /\?/, $uri;
+  foreach my $request_filter ( @{ $s->config->web->request_filters } )
+  {
+    if( my $exact = $request_filter->{uri_equals} )
+    {
+      push @out, $request_filter->{class}
+        if $exact eq $uri_no_args;
+    }
+    elsif( my $pattern = $request_filter->{uri_match} )
+    {
+      push @out, $request_filter->{class}
+        if $uri_no_args =~ m{^$pattern};
+    }# end if()
+  }# end foreach()
+  
+  @out ? return @out : return;
+}# end _resolve_request_filters()
+
+
+sub _sanitize_psgi_env_input
+{
+  my ($s, $psgi_env) = @_;
+  
+  if( my $ifh = $psgi_env->{'psgi.input'} )
+  {
+    my $data_in = '';
+    local $SIG{__WARN__} = sub { };
+#    if( ref($ifh) eq 'GLOB' )
+ eval   {
+      while( defined(my $line = <$ifh>) )
+      {
+        $data_in .= $line;
+      }# end while()
+      close($ifh);
+      $psgi_env->{'psgi.input'} = IO::Scalar->new( \$data_in );
+    }# end if()
+  }# end if()
+  
+  return $psgi_env;
+}# end _sanitize_psgi_env_input()
 
 
 sub DESTROY
 {
   my $s = shift;
-  $s->session->save if $s->session && ! $s->session->is_read_only;
-  $s = { };
-  undef(%$s);
+  
+  $_->() for @{ $s->cleanup_handlers };
+  $s->session->save
+    if $s->{session};
+  return unless @{ $s->async_cleanup_handlers };
+  
+  if( defined(my $pid = fork) )
+  {
+    if( $pid )
+    {
+      undef %$s;
+      return;
+    }
+    else
+    {
+      $_->() for @{ $s->async_cleanup_handlers };
+      exit;
+    }# end if()
+  }
+  else
+  {
+    $_->() for @{ $s->async_cleanup_handlers };
+  }# end if()
 }# end DESTROY()
 
+
 1;# return true:
-
-=pod
-
-=head1 NAME
-
-ASP4::HTTPContext - Provides access to the intrinsic objects for an HTTP request.
-
-=head1 SYNOPSIS
-
-  use ASP4::HTTPContext;
-  
-  my $context = ASP4::HTTPContext->current;
-  
-  # Intrinsics:
-  my $request   = $context->request;
-  my $response  = $context->response;
-  my $session   = $context->session;
-  my $server    = $context->server;
-  my $config    = $context->config;
-  my $stash     = $context->stash;
-  
-  # Advanced:
-  my $cgi = $context->cgi;
-  my $r = $context->r;
-
-=head1 DESCRIPTION
-
-The HTTPContext itself is the root of all request-processing in an ASP4 web application.
-
-There is only one ASP4::HTTPContext instance throughout the lifetime of a request.
-
-=head1 PROPERTIES
-
-=head2 current
-
-Returns the C<ASP4::HTTPContext> object in use for the current HTTP request.
-
-=head2 request
-
-Returns the L<ASP4::Request> for the HTTP request.
-
-=head2 response
-
-Returns the L<ASP4::Response> for the HTTP request.
-
-=head2 server
-
-Returns the L<ASP4::Server> for the HTTP request.
-
-=head2 session
-
-Returns the L<ASP4::SessionStateManager> for the HTTP request.
-
-=head2 stash
-
-Returns the current stash hash in use for the HTTP request.
-
-=head2 config
-
-Returns the current C<ASP4::Config> for the HTTP request.
-
-=head2 cgi
-
-Provided B<Just In Case> - returns the L<CGI> object for the HTTP request.
-
-=head2 r
-
-Provided B<Just In Case> - returns the L<Apache2::RequestRec> for the HTTP request.
-
-B<NOTE:> Under L<ASP4::API> (eg: in a unit test) C<$r> will be an instance of L<ASP4::Mock::RequestRec> instead.
-
-=head1 BUGS
-
-It's possible that some bugs have found their way into this release.
-
-Use RT L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=ASP4> to submit bug reports.
-
-=head1 HOMEPAGE
-
-Please visit the ASP4 homepage at L<http://0x31337.org/code/> to see examples
-of ASP4 in action.
-
-=cut
 

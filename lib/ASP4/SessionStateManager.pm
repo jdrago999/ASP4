@@ -1,42 +1,55 @@
 
+
 package ASP4::SessionStateManager;
 
 use strict;
 use warnings 'all';
 use base 'Ima::DBI::Contextual';
-use HTTP::Date qw( time2iso time2str str2time );
-use Time::HiRes 'gettimeofday';
 use Digest::MD5 'md5_hex';
+use Time::HiRes 'gettimeofday';
+use HTTP::Date 'time2iso';
 use Storable qw( freeze thaw );
-use Scalar::Util 'weaken';
-use ASP4::ConfigLoader;
 
+sub context { ASP4::HTTPContext->current }
 
 sub new
 {
-  my ($class, $r) = @_;
-  my $s = bless { }, $class;
-  my $conn = context()->config->data_connections->session;
+  my $class = shift;
   
+  my $s = bless { }, $class;
+  
+  my $config = $s->context->config->data_connections->session;
   local $^W = 0;
-  $class->set_db('Session',
-    $conn->dsn,
-    $conn->username,
-    $conn->password
-  );
+  $s->set_db('Session', $config->dsn, $config->username, $config->password);
   
   my $id = $s->parse_session_id();
-  unless( $id && $s->verify_session_id( $id, $conn->session_timeout ) )
+  unless( $id && $s->verify_session_id( $id, $config->session_timeout ) )
   {
     $s->{SessionID} = $s->new_session_id();
-    $s->write_session_cookie($r);
+    $s->write_session_cookie();
     return $s->create( $s->{SessionID} );
   }# end unless()
   
   return $s->retrieve( $id );
 }# end new()
 
-sub context { ASP4::HTTPContext->current }
+
+sub parse_session_id
+{
+  my $s = shift;
+  
+  my $cookie_name = $s->context->config->data_connections->session->cookie_name;
+  
+  $s->context->cgi->cookie( $cookie_name );
+}# end parse_session_id()
+
+
+sub new_session_id
+{
+  my $s = shift;
+  md5_hex( join ':', ( $s->context->cgi->virtual_host, gettimeofday() ) );
+}# end new_session_id()
+
 
 sub is_read_only
 {
@@ -53,24 +66,11 @@ sub is_read_only
 }# end is_readonly()
 
 
-sub parse_session_id
-{
-  my $session_config = context()->config->data_connections->session;
-  my $cookie_name = $session_config->cookie_name;
-  my ($id) = ($ENV{HTTP_COOKIE}||'') =~ m/\b\Q$cookie_name\E\=([a-f0-9]{32,32})/s;
-
-  return $id;
-}# end parse_session_id()
-
-
-sub new_session_id { md5_hex( join ':', ( context()->config->web->www_root, $$, gettimeofday() ) ) }
-
-
 sub write_session_cookie
 {
-  my ($s, $r) = @_;
+  my $s = shift;
   
-  my $config = context()->config->data_connections->session;
+  my $config = $s->context->config->data_connections->session;
   my $domain = "";
   unless( $config->cookie_domain eq '*' )
   {
@@ -78,11 +78,9 @@ sub write_session_cookie
   }# end unless()
   my $name = $config->cookie_name;
   
-  my @cookie = (
+  $s->context->headers_out->add_header(
     'Set-Cookie' => "$name=$s->{SessionID}; path=/; $domain"
   );
-  context()->headers_out->push_header( @cookie );
-  @cookie;
 }# end write_session_cookie()
 
 
@@ -91,7 +89,7 @@ sub verify_session_id
   my ($s, $id, $timeout ) = @_;
   
   my $is_active;
-  if( $timeout eq '*' )
+  if( $timeout eq '*' || ! $timeout )
   {
     local $s->db_Session->{AutoCommit} = 1;
     my $sth = $s->db_Session->prepare(<<"");
@@ -192,7 +190,6 @@ sub save
   
   return unless $s->{SessionID};
   no warnings 'uninitialized';
-#  $s->{__lastMod} = time();
   $s->sign;
   
   local $s->db_Session->{AutoCommit} = 1;
@@ -261,65 +258,10 @@ sub DESTROY
   
   unless( $s->is_read_only )
   {
-    $s->save;# if $s->is_changed;
+    $s->save;
   }# end unless()
   undef(%$s);
 }# end DESTROY()
 
 1;# return true:
-
-=pod
-
-=head1 NAME
-
-ASP4::SessionStateManager - Per-user state persistence
-
-=head1 SYNOPSIS
-
-  You've seen this page <%= $Session->{counter}++ %> times before.
-
-=head1 DESCRIPTION
-
-Web applications require session state management - and the simpler, the better.
-
-C<ASP4::SessionStateManager> is a simple blessed hash.  When it goes out of scope,
-it is saved to the database (or whatever).
-
-If no changes were made to the session, it is not saved.
-
-=head1 PUBLIC PROPERTIES
-
-=head2 is_read_only( 1:0 )
-
-Starting with version 1.044, setting this property to a true value will prevent
-any changes made to the contents of the session during the current request from
-being saved at the end of the request.
-
-B<NOTE:> A side-effect is that calling C<< $Session->save() >> after calling C<< $Session->is_read_only(1) >>
-will B<*NOT*> prevent changes from being saved B<ON PURPOSE>.  Explicitly calling C<< $Session->save() >>
-will still cause the session data to be stored.  Setting C<< $Session->is_read_only(1) >> will only
-prevent the default behavior of saving session state at the end of each successful request.
-
-=head1 PUBLIC METHODS
-
-=head2 save( )
-
-Causes the session data to be saved. (Unless C<< $Session->is_read_only(1) >> is set.)
-
-=head2 reset( )
-
-Causes the session data to be emptied.
-
-=head1 BUGS
-
-It's possible that some bugs have found their way into this release.
-
-Use RT L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=ASP4> to submit bug reports.
-
-=head1 HOMEPAGE
-
-Please visit the ASP4 homepage at L<http://0x31337.org/code/> to see examples
-of ASP4 in action.
-
-=cut
 

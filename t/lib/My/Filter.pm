@@ -9,7 +9,6 @@ use vars __PACKAGE__->VARS;
 sub run {
   my ($s, $context) = @_;
   
-#  warn "Filtering: $s";
   return $Response->Declined;
 }
 

@@ -4,30 +4,11 @@ ASP4::OutBuffer;
 
 use strict;
 use warnings 'all';
-
-
-sub new
-{
-  return bless { data => '' }, shift;
-}# end new()
-
-sub add
-{
-  my ($s, $str) = @_;
-  return unless defined($str);
-  $s->{data} .= $str;
-  return;
-}# end add()
-
-sub data  { shift->{data} }
-sub clear { shift->{data} = '' }
-
-sub DESTROY
-{
-  my $s = shift;
-  delete($s->{data});
-  undef(%$s);
-}# end DESTROY()
+use overload '""' => sub { shift->data }, fallback => 1;
+sub new   { bless { data => '' }, shift }
+sub data  { $_[0]->{data} }
+sub add   { $_[0]->{data} .= $_[1] if defined $_[1]; }
+sub empty { shift->{data} = '' }
 
 1;# return true:
 

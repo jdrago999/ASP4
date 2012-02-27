@@ -6,6 +6,8 @@ use warnings 'all';
 use base 'ASP4::HTTPHandler';
 use vars __PACKAGE__->VARS;
 
+sub new { bless { }, shift }
+
 1;# return true:
 
 =pod

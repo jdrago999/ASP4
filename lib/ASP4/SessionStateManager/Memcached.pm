@@ -15,8 +15,8 @@ my $memd;
 
 sub new
 {
-  my ($class, $r) = @_;
-  my $s = bless { }, $class;
+  my $s = bless { }, shift;
+  
   my $conn = ASP4::ConfigLoader->load->data_connections->session;
   $memd = Cache::Memcached->new({
     servers => [ $conn->dsn ]
@@ -25,14 +25,14 @@ sub new
   my $id = $s->parse_session_id();
   unless( $id && $s->verify_session_id( $id, $conn->session_timeout ) )
   {
-    $s->{__ttl} = $conn->session_timeout;
+    $s->{__ttl} = $conn->session_timeout if $conn->session_timeout;
     $s->{SessionID} = $s->new_session_id();
-    $s->write_session_cookie($r);
+    $s->write_session_cookie();
     return $s->create( $s->{SessionID} );
   }# end unless()
   
   return $s->retrieve( $id );
-}# end new()
+}# end BUILD()
 
 
 sub verify_session_id
@@ -60,9 +60,6 @@ sub save
   my ($s, $id) = @_;
   
   return unless $s->{SessionID};
-  no warnings 'uninitialized';
-  my $seconds_since_last_modified = time() - ($s->{__lastMod} || 0);
-  return unless $s->is_changed || ( $seconds_since_last_modified > 60 );
   $s->{__lastMod} = time();
   $s->sign;
   
@@ -82,7 +79,4 @@ sub reset
 }# end reset()
 
 1;# return true:
-
-
-
 

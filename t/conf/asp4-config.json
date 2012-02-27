@@ -17,7 +17,13 @@
     },
     "settings": {
       "foo": "bar",
-      "baz": "bux"
+      "baz": "bux",
+      "hashref_var":  {
+        "foo":    "bar"
+      },
+      "arrayref_var": [
+        "foo", "bar"
+      ]
     }
   },
   "errors": {
@@ -35,6 +41,10 @@
     "handler_runner":   "ASP4::HandlerRunner",
     "filter_resolver":  "ASP4::FilterResolver",
     "request_filters": [
+      {
+        "uri_match":  "^/member.asp",
+        "class":      "My::LoggedInFilter"
+      },
       {
         "uri_match":  "^/seo/.*",
         "class":      "My::SEOFilter"
@@ -69,6 +79,7 @@
       "cookie_name":      "session-id",
       "cookie_domain":    "*",
       "session_timeout":  "*",
+      "dsn_memcached":              [ "127.0.0.1:11211" ],
       "dsn":              "DBI:SQLite:dbname=/tmp/db_asp4",
       "username":         "",
       "password":         ""

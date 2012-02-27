@@ -3,7 +3,7 @@
 use strict;
 use warnings 'all';
 use ASP4::API;
-my $api; BEGIN { $api = ASP4::API->new }
+my $api = ASP4::API->new;
 
 my $url = shift(@ARGV) or die <<"USAGE";
   Usage:  $0 "<url>"

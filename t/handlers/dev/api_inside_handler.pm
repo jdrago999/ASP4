@@ -11,9 +11,12 @@ sub run
 {
   my ($s, $context) = @_;
   
-  my $api = ASP4::API->new();
-  my $res = $api->ua->get("/static.txt");
-  $Response->Write( $res->content );
+  $Response->Write(
+    $Response->TrapInclude(
+      $Server->MapPath("/handlers/dev.speed")
+    )
+  );
+  
 }# end run()
 
 1;# return true:

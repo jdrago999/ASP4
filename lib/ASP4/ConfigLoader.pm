@@ -1,96 +1,129 @@
 
-package ASP4::ConfigLoader;
+package
+ASP4::ConfigLoader;
 
 use strict;
 use warnings 'all';
-use Carp 'confess';
-use ASP4::ConfigFinder;
-use ASP4::ConfigParser;
+use Cwd 'fastcwd';
 use JSON::XS;
+use ASP4::Config;
+use ASP4::ConfigNode;
+use ASP4::ConfigNode::Web;
+use ASP4::ConfigNode::System;
 
-our $Configs = { };
+my $cache = { };
 
+sub new { bless { }, shift }
 
-#==============================================================================
+sub application_root { $_[0]->{application_root} }
+sub project_root { $_[0]->{project_root} }
+sub config_filename
+{
+  my $s = shift;
+  $s->{config_filename} ||= $s->_find_config_path();
+  $s->{config_filename};
+}# end config_filename()
+
 sub load
+{
+  my ($class) = @_;
+  
+  my $s = ref($class) ? $class : $class->new();
+  my $path = $s->config_filename();
+  
+  my $file_time = (stat($path))[7];
+  if( exists($cache->{$path}) && ( $file_time <= $cache->{$path}->{timestamp} ) )
+  {
+    return $cache->{$path}->{data};
+  }# end if()
+  
+  my $json = do {
+    open my $ifh, '<', $path
+      or die "Cannot open '$path' for reading: $!";
+    local $/;
+    my %replace = (
+      '@ServerRoot@'  => $s->application_root,
+      '@ProjectRoot@' => $s->project_root,
+    );
+    map { $replace{$_} =~ s{\\}{\\\\}sg } keys %replace;
+    (my $str = <$ifh>) =~ s{(\@(?:ServerRoot|ProjectRoot)\@)}{$replace{$1}}egs;
+    my $data = eval { decode_json( $str ) }
+      or die "Cannot parse json file '$path': $@";
+    $data;
+  };
+  
+  my $config_types = {
+    system  => 'ASP4::ConfigNode::System',
+    web     => 'ASP4::ConfigNode::Web',
+  };
+  my %args = (
+    (
+      map {
+        my $type = $config_types->{$_} || 'ASP4::ConfigNode';
+       ( $_ => $type->new( %{ $json->{$_} } ) )
+      } grep { ref($json->{$_}) eq 'HASH' } keys %$json
+    ),
+    (
+      map {
+        ( $_ => $json->{$_} )
+      } grep { ref($json->{$_}) ne 'HASH' } keys %$json
+    )
+  );
+  
+  (my $where = $path) =~ s/\/conf\/[^\/]+$//;
+  $cache->{$path} = {
+    data      => ASP4::Config->new( %args ),
+    timestamp => $file_time,
+  };
+  
+  $cache->{$path}->{data};
+}# end load()
+
+
+sub _find_config_path
 {
   my ($s) = @_;
   
-  my $path = ASP4::ConfigFinder->config_path;
-  my $file_time = (stat($path))[7];
-  if( exists($Configs->{$path}) && ( $file_time <= $Configs->{$path}->{timestamp} ) )
+  my $CONFIGFILE = 'asp4-config.json';
+  
+  my $root = do { ($ENV{REMOTE_ADDR} || '') eq '' ? fastcwd() : $ENV{DOCUMENT_ROOT} || fastcwd() };
+  
+  # Try test dir:
+  if( -f "$root/t/conf/$CONFIGFILE" )
   {
-    return $Configs->{$path}->{data};
+    $s->_set_root_paths( "$root/t" );
+    return "$root/t/conf/$CONFIGFILE";
   }# end if()
   
-  open my $ifh, '<', $path
-    or die "Cannot open '$path' for reading: $!";
-  local $/;
-  my $doc = decode_json( scalar(<$ifh>) );
-  close($ifh);
+  # Start moving up:
+  for( 1...10 )
+  {
+    my $path = "$root/conf/$CONFIGFILE";
+    if( -f $path )
+    {
+      $s->_set_root_paths( $root );
+      return $path;
+    }# end if()
+    $root =~ s/\/[^\/]+$//
+      or last;
+  }# end for()
   
-  (my $where = $path) =~ s/\/conf\/[^\/]+$//;
-  $Configs->{$path} = {
-    data      => ASP4::ConfigParser->new->parse( $doc, $where ),
-    timestamp => $file_time,
-  };
-  return $Configs->{$path}->{data};
-}# end parse()
+  die "CANNOT FIND '$CONFIGFILE' anywhere under '$root'";
+}# end _find_config_path()
+
+
+sub _set_root_paths
+{
+  my ($s, $root) = @_;
+  
+  my $project_root = (sub{
+    my @parts = split /\//, $root;
+    pop(@parts);
+    join '/', @parts;
+  })->();
+  $s->{project_root} = $project_root;
+  $s->{application_root} = $root;
+}# end _set_root_paths()
 
 1;# return true:
-
-__END__
-
-=pod
-
-=head1 NAME
-
-ASP4::ConfigLoader - Universal access to the configuration.
-
-=head1 SYNOPSIS
-
-  use ASP4::ConfigLoader;
-  
-  my $Config = ASP4::ConfigLoader->load();
-  
-  # $Config is a ASP4::Config object.
-
-=head1 DESCRIPTION
-
-This package solves the "How do I get my config?" problem most web applications
-end up with at some point.
-
-Config data is cached on a per-path basis.  Paths are full - i.e. C</usr/local/projects/mysite.com/conf/asp4-config.json> - 
-so there should never be a clash between two different configurations on the
-same web server, even if it is running multiple websites as VirtualHosts.
-
-=head1 PUBLIC METHODS
-
-=head2 load( )
-
-Returns a L<ASP4::Config> object.
-
-=head1 BUGS
-
-It's possible that some bugs have found their way into this release.
-
-Use RT L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=ASP4> to submit bug reports.
-
-=head1 HOMEPAGE
-
-Please visit the ASP4 homepage at L<http://0x31337.org/code/> to see examples
-of ASP4 in action.
-
-=head1 AUTHOR
-
-John Drago <jdrago_999@yahoo.com>
-
-=head1 COPYRIGHT AND LICENSE
-
-Copyright 2007 John Drago, All rights reserved.
-
-This software is free software.  It may be used and distributed under the
-same terms as Perl itself.
-
-=cut
 

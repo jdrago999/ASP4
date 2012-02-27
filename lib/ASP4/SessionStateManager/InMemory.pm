@@ -18,7 +18,7 @@ sub new
   unless( $id && $s->verify_session_id( $id, $conn->session_timeout ) )
   {
     $s->{SessionID} = $s->new_session_id();
-    $s->write_session_cookie($r);
+    $s->write_session_cookie();
     return $s->create( $s->{SessionID} );
   }# end unless()
   
@@ -72,6 +72,7 @@ sub reset
   $s->save;
   return;
 }# end reset()
+
 
 1;# return true:
 

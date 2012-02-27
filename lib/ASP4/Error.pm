@@ -3,9 +3,8 @@ package ASP4::Error;
 
 use strict;
 use warnings 'all';
-use ASP4::HTTPContext;
+use ASP4::HTTPContext ();
 use JSON::XS;
-
 
 sub new
 {
@@ -106,7 +105,6 @@ sub new
   
   return bless \%info, $class;
 }# end new()
-
 
 sub domain        { $_[0]->{domain} }
 sub request_uri   { $_[0]->{request_uri} }

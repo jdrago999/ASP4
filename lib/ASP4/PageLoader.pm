@@ -10,6 +10,7 @@ use ASP4::HandlerResolver;
 use File::stat;
 my %FileTimes = ( );
 
+sub context { ASP4::HTTPContext->current }
 
 sub discover
 {
@@ -56,7 +57,8 @@ sub load
   my ($class, %args) = @_;
   
   my $info = $class->discover( script_name => $args{script_name} );
-  my $key = ($ENV{DOCUMENT_ROOT}||"") . ":$info->{filename}";
+  my $doc_root = context->config->web->www_root;
+  my $key = "$doc_root:$info->{filename}";
   if( $class->needs_recompile( $info->{saved_to}, $info->{filename} ) )
   {
     my $page = ASP4::PageParser->new( script_name => $info->{script_name} )->parse();

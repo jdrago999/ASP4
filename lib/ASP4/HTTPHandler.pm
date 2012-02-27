@@ -4,7 +4,6 @@ ASP4::HTTPHandler;
 
 use strict;
 use warnings 'all';
-use Data::Properties::YAML;
 
 BEGIN {
   sub VARS {
@@ -18,12 +17,7 @@ BEGIN {
   use vars __PACKAGE__->VARS;
 }
 
-
-sub new {
-  my ($class, %args) = @_;
-  return bless \%args, $class;
-}
-
+sub new { bless { }, shift }
 
 sub before_run  { 1; }
 sub after_run   { }
@@ -34,6 +28,8 @@ sub stash       { $Stash }
 sub server      { $Server }
 sub form        { $Form }
 sub config      { $Config }
+
+sub context { ASP4::HTTPContext->current }
 
 
 sub init_asp_objects
@@ -62,7 +58,7 @@ sub init_asp_objects
     ${"$_\::Stash"}     = $Stash;
   } grep { ! $saw{$_}++ } @classes;
   
-  return 1;
+  return $s;
 }# end init_asp_objects()
 
 
@@ -70,8 +66,30 @@ sub properties
 {
   my ($s, $file) = @_;
   
-  $file ||= $Config->web->application_root . '/etc/properties.yaml';
-  return Data::Properties::YAML->new( properties_file => $file );
+  my %classes = (
+    json  => 'Data::Properties::JSON',
+    yaml  => 'Data::Properties::YAML',
+    yml   => 'Data::Properties::YAML',
+  );
+  my $config = $s->context->config;
+  unless( $file )
+  {
+    my %options = (
+      $config->web->application_root . '/etc/properties.json' => $classes{json},
+      $config->web->application_root . '/etc/properties.yaml' => $classes{yaml},
+      $config->web->application_root . '/etc/properties.yml'  => $classes{yml},
+    );
+    
+    # Short-circuit on the first found test_fixtures.* file:
+    ($file) = grep { -f $_ } sort keys %options
+      or die "Cannot find properties file";
+  }# end unless()
+  
+  my ($ext) = $file =~ m{\.([^\.]+)$};
+  my $class = $classes{$ext}
+   or die "Invalid properties filename '$file' should end with *.json, *.yaml or &.yml";
+  $config->load_class( $class );
+  $class->new( properties_file => $file );
 }# end properties()
 
 sub trim_form

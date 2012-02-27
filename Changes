@@ -4,6 +4,24 @@
 
 [CHANGELOG]
 
+2012-02-26    1.086_001
+  - Rewrite has begun!
+  - Internal conversion to speak fluent PSGI is underway.
+
+2012-02-24    1.085
+  - Fixed ASP4::UserAgent to take advantage of new subrequest option.
+  - Use of the ASP4::API within an existing asp script, handler or request filter
+    is fully-functional now.  Before, the behavior was unpredictable.
+
+2012-02-24    1.084
+  - The Response->Redirect hack has been removed.
+  - Added concept of 'context->is_subrequest'
+    - this simplifies things a great deal.
+    - ->is_subrequest means that a subrequest context will not clobber ->current.
+
+2012-02-24    1.083
+  - A wild Meta.json appeared in 1.082!
+
 2012-02-24    1.082
   - Response->Redirect after Response->TrapInclude was causing the redirect to fail.
   - This release introduces a hack to fix it, by writing a meta tag to the client.

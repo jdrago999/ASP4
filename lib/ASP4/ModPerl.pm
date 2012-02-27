@@ -10,178 +10,52 @@ use Apache2::RequestIO ();
 use Apache2::Connection ();
 use Apache2::RequestUtil ();
 use ASP4::HTTPContext ();
-use CGI( ':cgi' );
+use ASP4::PSGI;
+use base 'Plack::Handler::Apache2';
 
+our $_r;
 
-#==============================================================================
 sub handler : method
 {
   my ($class, $r) = @_;
+  $_r = $r;
+
+  $ENV{REQUEST_URI} = $r->uri . ( $r->args ? '?' . $r->args : '' );
+  $::original_uri = $ENV{REQUEST_URI};
+  chdir($r->document_root);
   
-  $ENV{DOCUMENT_ROOT}   = $r->document_root;
-  $ENV{REMOTE_ADDR}     = $r->connection->get_remote_host();
-  $ENV{HTTP_HOST}       = $r->hostname;
-  
-  my $context = ASP4::HTTPContext->new();
-  $r->pool->cleanup_register(sub { $context->DESTROY });
-  
-  if( ($r->headers_in->{'content-type'}||'') =~ m/multipart\/form\-data/ )
-  {
-    $context->{r} = $r;
-    if( $@ )
-    {
-      warn $@;
-      $r->status( 500 );
-      return $r->status;
-    }# end if()
-    
-    my $handler_class = eval {
-      $context->config->web->handler_resolver->new()->resolve_request_handler( $r->uri )
-    };
-    if( $@ )
-    {
-      warn $@;
-      $r->status( 500 );
-      return $r->status;
-    }# end if()
-    
-    return 404 unless $handler_class;
-    
-    eval {
-      my $cgi = CGI->new( $r );
-      my %args = map { my ($k,$v) = split /\=/, $_; ( $k => $v ) } split /&/, $ENV{QUERY_STRING};
-      map { $cgi->param($_ => $args{$_}) } keys %args;
-      $context->setup_request( $r, $cgi);
-      $context->execute;
-    };
-    if( $@ )
-    {
-      if( $@ =~ m/Software\scaused\sconnection\sabort/ )
-      {
-        return 0;
-      }# end if()
-      warn $@;
-      $r->status( 500 );
-    }# end if()
-    return $r->status =~ m/^2/ ? 0 : $r->status == 500 ? 0 : $r->status;
-  }
-  else
-  {
-    my $cgi = CGI->new( $r );
-    eval {
-      $context->setup_request( $r, $cgi );
-      $context->execute;
-    };
-    if( $@ =~ m/Software\scaused\sconnection\sabort/ )
-    {
-      return 0;
-    }# end if()
-    warn $@ if $@;
-    
-    
-    if( $context->response->Status == 200 )
-    {
-      $r->status( 200 );
-      if( $context->did_end && $context->did_send_headers )
-      {
-        $r->rflush();
-      }# end if()
-      return 0;
-    }
-    else
-    {
-      $r->status( $context->response->Status );
-      if( $context->did_end && $context->did_send_headers )
-      {
-        $r->rflush();
-      }
-      else
-      {
-        # Make sure we send our headers now, since we haven't done so already:
-        $context->send_headers();
-        $context->did_end(1);
-        $r->rflush();
-      }# end if()
-      return $context->response->Status == 500 ? 0 : $context->response->Status;
-    }# end if()
-  }# end if()
-  
+  my $app = ASP4::PSGI->app();
+  $class->call_app($r, $app);
 }# end handler()
 
+sub fixup_path {
+    my ($class, $r, $env) = @_;
+
+    # $env->{PATH_INFO} is created from unparsed_uri so it is raw.
+    my $path_info = $env->{PATH_INFO} || '';
+
+    # Get argument of <Location> or <LocationMatch> directive
+    # This may be string or regexp and we can't know either.
+    my $location = $r->location;
+
+    # Let's *guess* if we're in a LocationMatch directive
+    if ($location eq '/') {
+        # <Location /> could be handled as a 'root' case where we make
+        # everything PATH_INFO and empty SCRIPT_NAME as in the PSGI spec
+        $env->{SCRIPT_NAME} = '';
+    } elsif ($path_info =~ s{^($location)/?}{/}) {
+        $env->{SCRIPT_NAME} = $1 || '';
+    } else {
+        # Apache's <Location> is matched but here is not.
+        # This is something wrong. We can only respect original.
+#        $r->server->log_error(
+#            "Your request path is '$path_info' and it doesn't match your Location(Match) '$location'. " .
+#            "This should be due to the configuration error. See perldoc Plack::Handler::Apache2 for details."
+#        );
+    }
+
+    $env->{PATH_INFO}   = $path_info;
+}
+
 1;# return true:
-
-=pod
-
-=head1 NAME
-
-ASP4::ModPerl - mod_perl2 PerlResponseHandler for ASP4
-
-=head1 SYNOPSIS
-
-In your httpd.conf
-
-  # Load up some important modules:
-  PerlModule DBI
-  PerlModule DBD::mysql
-  PerlModule ASP4::ModPerl
-  
-  <VirtualHost *:80>
-  
-    ServerName    mysite.com
-    ServerAlias   www.mysite.com
-    DocumentRoot  /usr/local/projects/mysite.com/htdocs
-    
-    # Set the directory index:
-    DirectoryIndex index.asp
-    
-    # All *.asp files are handled by ASP4::ModPerl
-    <Files ~ (\.asp$)>
-      SetHandler  perl-script
-      PerlResponseHandler ASP4::ModPerl
-    </Files>
-    
-    # !IMPORTANT! Prevent anyone from viewing your GlobalASA.pm
-    <Files ~ (\.pm$)>
-      Order allow,deny
-      Deny from all
-    </Files>
-    
-    # All requests to /handlers/* will be handled by their respective handler:
-    <Location /handlers>
-      SetHandler  perl-script
-      PerlResponseHandler ASP4::ModPerl
-    </Location>
-    
-  </VirtualHost>
-
-=head1 DESCRIPTION
-
-C<ASP4::ModPerl> provides a mod_perl2 PerlResponseHandler interface to
-L<ASP4::HTTPContext>.
-
-Under normal circumstances, all you have to do is configure it and forget about it.
-
-=head1 BUGS
-
-It's possible that some bugs have found their way into this release.
-
-Use RT L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=ASP4> to submit bug reports.
-
-=head1 HOMEPAGE
-
-Please visit the ASP4 homepage at L<http://0x31337.org/code/> to see examples
-of ASP4 in action.
-
-=head1 AUTHOR
-
-John Drago L<mailto:jdrago_999@yahoo.com>
-
-=head1 COPYRIGHT AND LICENSE
-
-Copyright 2007 John Drago, All rights reserved.
-
-This software is free software.  It may be used and distributed under the
-same terms as Perl itself.
-
-=cut
 
