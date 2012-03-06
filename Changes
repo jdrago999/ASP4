@@ -4,6 +4,9 @@
 
 [CHANGELOG]
 
+2012-03-01    1.086
+  - Use of $api->get within a handler is disabled at this time.
+
 2012-02-24    1.085
   - Fixed ASP4::UserAgent to take advantage of new subrequest option.
   - Use of the ASP4::API within an existing asp script, handler or request filter

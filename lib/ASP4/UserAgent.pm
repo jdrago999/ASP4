@@ -50,7 +50,8 @@ sub get
   my ($uri_no_args, $querystring) = split /\?/, $uri;
   my $r = ASP4::Mock::RequestRec->new( uri => $uri_no_args, args => $querystring );
   
-  $s->{context} = ASP4::HTTPContext->new( is_subrequest => $ASP4::HTTPContext::_instance ? 1 : 0 );
+  my $current_is_subrequest = $ASP4::HTTPContext::_instance ? $ASP4::HTTPContext::_instance->{is_subrequest} ? 1 : 0 : 0;
+  $s->{context} = ASP4::HTTPContext->new( is_subrequest => $current_is_subrequest ? 1 : 0 );
   
   return do {
     local $ASP4::HTTPContext::_instance = $s->context;
@@ -141,7 +142,8 @@ sub submit_form
   my $cgi = $s->_setup_cgi( $req );
   my ($uri_no_args, $querystring) = split /\?/, $req->uri;
   my $r = ASP4::Mock::RequestRec->new( uri => $uri_no_args, args => $querystring );
-  $s->{context} = ASP4::HTTPContext->new( is_subrequest => $ASP4::HTTPContext::_instance ? 1 : 0 );
+  my $current_is_subrequest = $ASP4::HTTPContext::_instance ? $ASP4::HTTPContext::_instance->{is_subrequest} ? 1 : 0 : 0;
+  $s->{context} = ASP4::HTTPContext->new( is_subrequest => $current_is_subrequest ? 1 : 0 );
   return do {
     local $ASP4::HTTPContext::_instance = $s->context;
     $s->context->setup_request( $r, $cgi );
@@ -222,7 +224,7 @@ sub _setup_response
   
   $s->context->r->pool->call_cleanup_handlers();
   
-  $s->context->DESTROY;
+#  $s->context->DESTROY;
   
   return $response;
 }# end _setup_response()
