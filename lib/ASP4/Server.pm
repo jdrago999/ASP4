@@ -3,6 +3,7 @@ package ASP4::Server;
 
 use strict;
 use warnings 'all';
+use Carp 'confess';
 use ASP4::HTTPContext;
 use ASP4::Error;
 use Mail::Sendmail;
@@ -69,7 +70,8 @@ sub Mail
   my $s = shift;
   
   Mail::Sendmail::sendmail( @_ );
-  die $Mail::Sendmail::error if $Mail::Sendmail::error;
+  confess $Mail::Sendmail::error
+    if $Mail::Sendmail::error;
   return $Mail::Sendmail::log;
 }# end Mail()
 
@@ -89,7 +91,7 @@ sub Error
   my $error = ref($_[0]) && $_[0]->isa('ASP4::Error') ? $_[0] : ASP4::Error->new( @_ );
 
   $s->context->stash->{error} = $error;
-  $s->context->config->load_class( $s->context->config->errors->error_handler );
+#  $s->context->config->load_class( $s->context->config->errors->error_handler );
   my $error_handler = $s->context->config->errors->error_handler->new();
   $error_handler->init_asp_objects( $s->context );
   $error_handler->run( $s->context );

@@ -11,7 +11,7 @@ BEGIN { ASP4::ConfigLoader->load }
 
 sub new
 {
-  my ($class) = @_;;
+  my ($class) = @_;
   
   my $config = ASP4::ConfigLoader->load;
   

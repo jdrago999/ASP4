@@ -20,10 +20,11 @@ sub new
   my $vars = $s->system->env_vars;
   foreach my $var ( keys %$vars )
   {
+    $vars->{$var} =~ s{\@ServerRoot\@}{$root}sg;
     $ENV{$var} = $vars->{$var};
   }# end foreach()
   
-  map { $s->load_class( $_ ) } $s->system->load_modules;
+  map { $s->_load_class( $_ ) } $s->system->load_modules;
   
   return $s;
 }# end new()
@@ -125,13 +126,14 @@ sub init_server_root
     unless -w $folder;
 }# end init_server_root()
 
+sub load_class { confess "load_class called" }
 
-sub load_class
+sub _load_class
 {
   my ($s, $class) = @_;
   
   (my $file = "$class.pm") =~ s/::/\//g;
-  eval { require $file; }
+  eval { require $file; $class->import; 1 }
     or confess "Cannot load $class: $@";
 }# end load_class()
 

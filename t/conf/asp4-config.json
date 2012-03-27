@@ -8,7 +8,12 @@
     ],
     "load_modules": [
       "DBI",
-      "DBD::SQLite"
+      "DBD::SQLite",
+      "ASP4::SessionStateManager::InMemory",
+      "ASP4::HandlerResolver",
+      "ASP4::HandlerRunner",
+      "ASP4::FilterResolver",
+      "ASP4::Preloader"
     ],
     
     "env_vars": {

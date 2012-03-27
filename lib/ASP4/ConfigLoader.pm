@@ -11,14 +11,12 @@ use JSON::XS;
 our $Configs = { };
 
 
-#==============================================================================
 sub load
 {
   my ($s) = @_;
   
   my $path = ASP4::ConfigFinder->config_path;
-  my $file_time = (stat($path))[7];
-  if( exists($Configs->{$path}) && ( $file_time <= $Configs->{$path}->{timestamp} ) )
+  if( exists $Configs->{$path} )
   {
     return $Configs->{$path}->{data};
   }# end if()
@@ -31,8 +29,7 @@ sub load
   
   (my $where = $path) =~ s/\/conf\/[^\/]+$//;
   $Configs->{$path} = {
-    data      => ASP4::ConfigParser->new->parse( $doc, $where ),
-    timestamp => $file_time,
+    data => ASP4::ConfigParser->new->parse( $doc, $where )
   };
   return $Configs->{$path}->{data};
 }# end parse()

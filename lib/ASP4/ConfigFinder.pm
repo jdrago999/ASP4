@@ -13,7 +13,7 @@ sub config_path
 {
   my $path = $CONFIGFILE;
   
-  my $root = do { ($ENV{REMOTE_ADDR} || '') eq '' ? fastcwd() : $ENV{DOCUMENT_ROOT} || fastcwd() };
+  my $root = $ENV{ASP4_ROOT_DIR} || $ENV{DOCUMENT_ROOT} || fastcwd();
   
   # Try test dir:
   if( -f "$root/t/conf/$CONFIGFILE" )

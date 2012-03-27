@@ -222,6 +222,7 @@ sub _setup_response
     }# end while()
   }# end foreach()
   
+#  $s->context->session->save;
   $s->context->r->pool->call_cleanup_handlers();
   
 #  $s->context->DESTROY;

@@ -29,10 +29,10 @@ sub new
   $s->config->_init_inc();
   
   my $web = $s->config->web;
-  $s->config->load_class( $web->handler_resolver );
-  $s->config->load_class( $web->handler_runner );
-  $s->config->load_class( $s->config->data_connections->session->manager );
-  $s->config->load_class( $web->filter_resolver );
+#  $s->config->load_class( $web->handler_resolver );
+#  $s->config->load_class( $web->handler_runner );
+#  $s->config->load_class( $s->config->data_connections->session->manager );
+#  $s->config->load_class( $web->filter_resolver );
   
   return $s->is_subrequest ? $s : $_instance = $s;
 }# end new()
@@ -140,7 +140,7 @@ sub execute
     my $resolver = $s->config->web->filter_resolver;
     foreach my $filter ( $resolver->new()->resolve_request_filters( $s->r->uri ) )
     {
-      $s->config->load_class( $filter->class );
+#      $s->config->load_class( $filter->class );
       $filter->class->init_asp_objects( $s );
       my $IS_FILTER = 1;
       my $res = $s->handle_phase(sub{ $filter->class->new()->run( $s ) }, $IS_FILTER);
@@ -164,7 +164,7 @@ sub execute
   return $s->response->Status( 404 ) unless $s->{handler};
   
   eval {
-    $s->config->load_class( $s->handler );
+#    $s->config->load_class( $s->handler );
     $s->config->web->handler_runner->new()->run_handler( $s->handler, $args );
   };
   
@@ -176,6 +176,8 @@ sub execute
   
   $s->response->Flush;
   my $res = $s->end_request();
+  
+  $s->session->save if $s->session && ! $is_include;
   
   $res = 0 if $res =~ m/^200/;
   return $res;
@@ -262,7 +264,7 @@ sub do_disable_session_state
 sub DESTROY
 {
   my $s = shift;
-  $s->session->save if $s->session && ! $s->session->is_read_only;
+#  $s->session->save if $s->session && ! $s->session->is_read_only;
   $s = { };
   undef(%$s);
 }# end DESTROY()

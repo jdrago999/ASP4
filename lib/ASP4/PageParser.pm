@@ -230,7 +230,7 @@ SUB
   chmod(0766, $s->{saved_to});
 
   my $config = ASP4::ConfigLoader->load();
-  $config->load_class( $s->{package} );
+  $config->_load_class( $s->{package} );
   return $s->{package}->new();
 }# end parse()
 
